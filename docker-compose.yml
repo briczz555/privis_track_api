@@ -1,0 +1,90 @@
+name: privis-track
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-privis_track}
+      POSTGRES_USER: ${POSTGRES_USER:-privis}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-privis_dev_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    # Image resmi MinIO sudah tidak tersedia publik (Docker Hub 404, Quay 401).
+    # Default memakai image komunitas terakhir (Bitnami legacy); override lewat
+    # MINIO_IMAGE di .env jika punya akses ke registry/image MinIO sendiri.
+    image: ${MINIO_IMAGE:-bitnamilegacy/minio:2025.7.23-debian-12-r5}
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-privis_admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-privis_minio_password}
+      MINIO_DEFAULT_BUCKETS: ${MINIO_BUCKET:-privis-documents}
+      MINIO_BROWSER: "on"
+    volumes:
+      - minio_data:/bitnami/minio/data
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9000/minio/health/live || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  api:
+    build:
+      context: .
+      target: runtime
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-privis}:${POSTGRES_PASSWORD:-privis_dev_password}@postgres:5432/${POSTGRES_DB:-privis_track}?schema=public
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_USE_SSL: "false"
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # Jalankan manual setelah review skema:
+  #   docker compose --profile tools run --rm migrate
+  migrate:
+    profiles: ["tools"]
+    build:
+      context: .
+      target: build
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-privis}:${POSTGRES_PASSWORD:-privis_dev_password}@postgres:5432/${POSTGRES_DB:-privis_track}?schema=public
+    command: ["npx", "prisma", "migrate", "deploy"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  minio_data:
