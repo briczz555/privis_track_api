@@ -19,27 +19,44 @@ services:
       retries: 10
 
   minio:
-    # Image resmi MinIO sudah tidak tersedia publik (Docker Hub 404, Quay 401).
-    # Default memakai image komunitas terakhir (Bitnami legacy); override lewat
-    # MINIO_IMAGE di .env jika punya akses ke registry/image MinIO sendiri.
-    image: ${MINIO_IMAGE:-bitnamilegacy/minio:2025.7.23-debian-12-r5}
+    # Image hardened dari Chainguard (distroless, non-root UID 65532), dipin
+    # dengan digest agar reproducible. Override lewat MINIO_IMAGE di .env bila
+    # memakai registry/mirror MinIO lain.
+    image: ${MINIO_IMAGE:-cgr.dev/chainguard/minio@sha256:cee9a8e35885e93f14b3cb32960e5017aff74e2adfb52ba87c65003b0163886b}
     restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-privis_admin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-privis_minio_password}
-      MINIO_DEFAULT_BUCKETS: ${MINIO_BUCKET:-privis-documents}
-      MINIO_BROWSER: "on"
     volumes:
-      - minio_data:/bitnami/minio/data
+      - minio_data:/data
     ports:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:9000/minio/health/live || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 10
-      start_period: 15s
+
+  # Membuat bucket privat sekali jalan; sekaligus menjadi readiness gate untuk API
+  # (image MinIO distroless tidak menyediakan shell/curl/mc untuk healthcheck).
+  minio-init:
+    image: amazon/aws-cli:2.39.4
+    restart: "no"
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-privis_admin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-privis_minio_password}
+      AWS_DEFAULT_REGION: ${MINIO_REGION:-us-east-1}
+      MINIO_BUCKET: ${MINIO_BUCKET:-privis-documents}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        until aws --endpoint-url http://minio:9000 s3api list-buckets >/dev/null 2>&1; do
+          echo "menunggu minio...";
+          sleep 2;
+        done
+        if ! aws --endpoint-url http://minio:9000 s3api head-bucket --bucket "$$MINIO_BUCKET" >/dev/null 2>&1; then
+          aws --endpoint-url http://minio:9000 s3 mb "s3://$$MINIO_BUCKET"
+        fi
+        echo "minio siap: bucket $$MINIO_BUCKET (private)"
+    depends_on:
+      - minio
 
   api:
     build:
@@ -60,8 +77,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      minio:
-        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ >/dev/null || exit 1"]
       interval: 30s

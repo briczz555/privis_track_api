@@ -43,8 +43,8 @@ cp .env.example .env          # Windows: copy .env.example .env
 
 npm install
 
-# Jalankan PostgreSQL + MinIO (bucket dibuat otomatis)
-docker compose up -d postgres minio
+# Jalankan PostgreSQL + MinIO (bucket dibuat otomatis oleh minio-init)
+docker compose up -d postgres minio minio-init
 
 # Setelah skema disetujui: buat migration pertama
 npx prisma migrate dev --name init
@@ -53,8 +53,15 @@ npm run start:dev             # http://localhost:3000
 ```
 
 - PostgreSQL dari host: `localhost:5433` (port 5433 dipakai agar tidak bentrok dengan PostgreSQL lokal; ubah di `docker-compose.yml` + `DATABASE_URL` bila perlu).
-- Cek bucket: MinIO console di http://localhost:9001 (kredensial dari `.env`). Bucket `privis-documents` dibuat otomatis lewat `MINIO_DEFAULT_BUCKETS`.
-- Image MinIO resmi sudah tidak tersedia publik (Docker Hub 404, Quay 401, binary `dl.min.io` 410). Default compose memakai image komunitas terakhir Bitnami legacy; ganti `MINIO_IMAGE` di `.env` jika punya akses ke image MinIO resmi/mirror.
+- Cek bucket: MinIO console di http://localhost:9001 (kredensial dari `.env`). Bucket `privis-documents` dibuat oleh service `minio-init` (AWS CLI) yang sekaligus menjadi readiness gate untuk API.
+- MinIO memakai image hardened **Chainguard** (`cgr.dev/chainguard/minio`, distroless, non-root UID 65532) yang dipin dengan digest. Service `minio-init` memakai `amazon/aws-cli` untuk menunggu MinIO siap dan membuat bucket privat. Override `MINIO_IMAGE` di `.env` bila memakai registry/mirror lain.
+- Update image secara berkala:
+  ```bash
+  docker pull cgr.dev/chainguard/minio:latest
+  docker inspect --format='{{index .RepoDigests 0}}' cgr.dev/chainguard/minio:latest
+  # ganti nilai MINIO_IMAGE di .env, lalu: docker compose up -d minio
+  ```
+  Jangan pakai tag `latest` di produksi; selalu pin digest seperti default saat ini.
 
 ## Deploy di VPS (Docker)
 
@@ -97,7 +104,7 @@ Lihat `.env.example`. Variabel utama:
 |---|---|
 | `DATABASE_URL` | koneksi PostgreSQL (di Docker Compose di-override ke host `postgres`) |
 | `MINIO_*` | endpoint, kredensial, bucket, public URL |
-| `MINIO_IMAGE` | override image MinIO (default Bitnami legacy) |
+| `MINIO_IMAGE` | override image MinIO (default Chainguard, dipin digest) |
 | `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` | secret token (wajib diganti) |
 | `MAX_UPLOAD_MB` | batas ukuran upload (default 20) |
 | `PORT` | port API (default 3000) |
