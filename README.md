@@ -6,6 +6,7 @@ Backend Fase 2 untuk aplikasi **PriVis Track** — NestJS 12 + Prisma + PostgreS
 
 - Kontrak API (draft): `../privis_track/docs/api-contract.md` dan `../privis_track/docs/openapi.yaml`
   (masih berada di repo aplikasi Flutter untuk review; setelah disetujui dipindahkan ke `docs/` repo ini)
+- Panduan deploy VPS (Cloudflare Tunnel → NPM → API): [`docs/deployment-vps.md`](docs/deployment-vps.md)
 - Aplikasi Flutter: `../privis_track`
 
 ## Stack
@@ -42,6 +43,9 @@ cp .env.example .env          # Windows: copy .env.example .env
 # sesuaikan password/secret di .env
 
 npm install
+
+# Sekali saja untuk development lokal (agar API bisa join network yang sama dengan NPM):
+docker network create proxy-net
 
 # Jalankan PostgreSQL + MinIO (bucket dibuat otomatis oleh minio-init)
 docker compose up -d postgres minio minio-init
