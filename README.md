@@ -2,7 +2,7 @@
 
 Backend Fase 2 untuk aplikasi **PriVis Track** — NestJS 12 + Prisma + PostgreSQL + MinIO (S3-compatible).
 
-**Status:** skeleton/scaffold. Endpoint bisnis (auth, projects, dashboard, documents) **belum diimplementasikan** — menunggu review kontrak API.
+**Status:** endpoint baca + auth sudah berjalan. Upload/download dokumen dan endpoint tulis (update proyek/tahap) belum diimplementasikan.
 
 - Kontrak API (draft): `../privis_track/docs/api-contract.md` dan `../privis_track/docs/openapi.yaml`
   (masih berada di repo aplikasi Flutter untuk review; setelah disetujui dipindahkan ke `docs/` repo ini)
@@ -20,19 +20,33 @@ Backend Fase 2 untuk aplikasi **PriVis Track** — NestJS 12 + Prisma + PostgreS
 | Object storage | MinIO (kompatibel S3) |
 | Container | Docker + Docker Compose |
 
-## Struktur
+## Endpoint yang tersedia
+
+| Method | Path | Auth | Keterangan |
+|---|---|---|---|
+| GET | `/health` | publik | healthcheck Docker |
+| POST | `/v1/auth/login` | publik | login, mengembalikan access + refresh token |
+| POST | `/v1/auth/refresh` | publik | rotasi refresh token |
+| POST | `/v1/auth/logout` | publik | cabut refresh token |
+| GET | `/v1/me` | bearer | profil user |
+| GET | `/v1/dashboard` | bearer | agregat portfolio, proyek aktif, aktivitas |
+| GET | `/v1/projects` | bearer | daftar proyek + filter/pagination |
+| GET | `/v1/projects/{code}` | bearer | detail proyek + klien + 8 tahap + dokumen |
+| GET | `/v1/activities` | bearer | feed aktivitas (cursor) |
+
+Belum tersedia: `PATCH /projects/{code}`, `PATCH /projects/{code}/stages/{stage_no}`,
+upload/download dokumen.
+
+## Login hasil seed (development)
 
 ```
-privis_track_api/
-├── prisma/
-│   └── schema.prisma       # skema awal (menunggu approval; belum dimigrasikan)
-├── src/                    # NestJS (masih template)
-├── test/
-├── prisma.config.ts
-├── docker-compose.yml      # api + postgres + minio + minio-init + migrate
-├── Dockerfile              # multi-stage (deps → build → runtime)
-└── .env.example
+admin@privis.id   / Privis123!   (admin)
+rina@privis.id    / Privis123!   (pm)
+finance@privis.id / Privis123!   (finance)
+qa@privis.id      / Privis123!   (qa)
 ```
+
+Password default bisa diubah lewat `SEED_DEFAULT_PASSWORD`. **Ganti sebelum production.**
 
 ## Menjalankan lokal
 
@@ -44,60 +58,78 @@ cp .env.example .env          # Windows: copy .env.example .env
 
 npm install
 
-# Sekali saja untuk development lokal (agar API bisa join network yang sama dengan NPM):
+# Sekali saja agar API bisa join network yang sama dengan NPM:
 docker network create proxy-net
 
-# Jalankan PostgreSQL + MinIO (bucket dibuat otomatis oleh minio-init)
+# Infra: PostgreSQL + MinIO (bucket dibuat otomatis oleh minio-init)
 docker compose up -d postgres minio minio-init
 
-# Setelah skema disetujui: buat migration pertama
-npx prisma migrate dev --name init
+# Migration + seed
+npx prisma migrate deploy
+npx prisma db seed
 
 npm run start:dev             # http://localhost:3000
 ```
 
-- PostgreSQL dari host: `localhost:5433` (port 5433 dipakai agar tidak bentrok dengan PostgreSQL lokal; ubah di `docker-compose.yml` + `DATABASE_URL` bila perlu).
-- Cek bucket: MinIO console di http://localhost:9001 (kredensial dari `.env`). Bucket `privis-documents` dibuat oleh service `minio-init` (AWS CLI) yang sekaligus menjadi readiness gate untuk API.
-- MinIO memakai image hardened **Chainguard** (`cgr.dev/chainguard/minio`, distroless, non-root UID 65532) yang dipin dengan digest. Service `minio-init` memakai `amazon/aws-cli` untuk menunggu MinIO siap dan membuat bucket privat. Override `MINIO_IMAGE` di `.env` bila memakai registry/mirror lain.
-- Update image secara berkala:
-  ```bash
-  docker pull cgr.dev/chainguard/minio:latest
-  docker inspect --format='{{index .RepoDigests 0}}' cgr.dev/chainguard/minio:latest
-  # ganti nilai MINIO_IMAGE di .env, lalu: docker compose up -d minio
-  ```
-  Jangan pakai tag `latest` di produksi; selalu pin digest seperti default saat ini.
+- PostgreSQL dari host: `localhost:5433` (port 5433 dipakai agar tidak bentrok dengan PostgreSQL lokal).
+- MinIO console: http://localhost:9001 (kredensial dari `.env`); bucket `privis-documents` privat.
+- API hanya listen `127.0.0.1:3000` di host; akses publik lewat NPM/Cloudflare Tunnel.
 
 ## Deploy di VPS (Docker)
 
 ```bash
-git clone <repo-url> privis_track_api
+git clone https://github.com/briczz555/privis_track_api.git
 cd privis_track_api
 cp .env.example .env
-# edit .env → password Postgres/MinIO, JWT secret (openssl rand -hex 32)
+# edit .env: password Postgres/MinIO, JWT secret (openssl rand -hex 32)
 
 docker compose up -d --build
 
-# Setelah migration tersedia (sekali saja / setiap ada migration baru):
+# migration + seed awal (seed hanya jika diizinkan)
 docker compose --profile tools run --rm migrate
 ```
 
-- API: `http://<ip-vps>:3000`
-- Postgres & MinIO sengaja di-bind ke `127.0.0.1` (tidak terekspos publik).
-- Untuk produksi, pasang reverse proxy (Nginx/Traefik/Caddy) + HTTPS ke port 3000.
-  MinIO juga perlu domain + TLS jika signed URL akan diakses langsung dari HP
-  (`MINIO_PUBLIC_URL`).
-- Backup: volume `postgres_data` dan `minio_data`.
+Seed di production diblokir kecuali `SEED_ALLOW_PRODUCTION=true` dan
+`SEED_DEFAULT_PASSWORD` di-set. Untuk production sebaiknya buat user admin secara
+terkontrol, bukan memakai password default.
 
 ## Perintah penting
 
 ```bash
 npm run start:dev          # dev server (watch)
 npm run build              # compile ke dist/
-npm run start:prod         # jalankan hasil build (node dist/main.js)
+npm run start:prod         # node dist/main.js
 npx prisma validate        # validasi schema
 npx prisma studio          # GUI database
 npx prisma migrate dev     # migration saat development
 npx prisma migrate deploy  # migration di server/produksi
+npx prisma db seed         # seed data contoh
+npm test                   # unit test (Vitest)
+npm run test:e2e           # e2e (butuh PostgreSQL berjalan)
+```
+
+## Struktur
+
+```
+privis_track_api/
+├── prisma/
+│   ├── schema.prisma       # skema database
+│   ├── migrations/         # migration SQL
+│   └── seed.ts             # data contoh (user, klien, proyek, dokumen, aktivitas)
+├── src/
+│   ├── activities/         # feed aktivitas + cursor
+│   ├── auth/               # login, refresh, logout, JWT strategy
+│   ├── common/             # guard, filter, decorator, interceptor
+│   ├── config/             # validasi env (zod)
+│   ├── dashboard/          # agregat dashboard
+│   ├── health/             # /health
+│   ├── prisma/             # PrismaModule/Service
+│   └── projects/           # daftar & detail proyek, mapper progres
+├── docs/deployment-vps.md
+├── prisma.config.ts
+├── docker-compose.yml      # api + postgres + minio + minio-init + migrate
+├── Dockerfile              # multi-stage
+└── .env.example
 ```
 
 ## Environment
@@ -110,15 +142,16 @@ Lihat `.env.example`. Variabel utama:
 | `MINIO_*` | endpoint, kredensial, bucket, public URL |
 | `MINIO_IMAGE` | override image MinIO (default Chainguard, dipin digest) |
 | `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` | secret token (wajib diganti) |
-| `MAX_UPLOAD_MB` | batas ukuran upload (default 20) |
-| `PORT` | port API (default 3000) |
+| `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL` | masa berlaku token (detik) |
+| `MAX_UPLOAD_MB` | batas upload (default 20, belum dipakai endpoint upload) |
+| `TRUST_PROXY` | jumlah hop proxy (1 untuk Cloudflare Tunnel + NPM) |
+| `APP_BASE_URL` | URL publik API |
+| `SEED_DEFAULT_PASSWORD` | password seed development |
+| `SEED_ALLOW_PRODUCTION` | izinkan seed di production (default tidak) |
 
-## Langkah berikutnya (setelah kontrak disetujui)
+## Langkah berikutnya
 
-1. Module `prisma` + `PrismaService`.
-2. Migration awal + seed user/admin dan data contoh.
-3. Auth (login/refresh/logout, bcrypt/argon2, refresh token rotation).
-4. Endpoints `/dashboard`, `/projects`, `/projects/:id` (read-only).
-5. Upload/download dokumen ke MinIO + pencatatan aktivitas.
-6. OpenAPI (`/docs`) + e2e test + CI.
-7. Baru setelah itu: wiring Dio di aplikasi Flutter.
+1. `PATCH /projects/{code}` dan `PATCH /projects/{code}/stages/{stage_no}`.
+2. Upload dokumen (MinIO multipart) + download stream + activity log.
+3. Swagger/OpenAPI runtime + rate limiting login.
+4. Wiring Dio di aplikasi Flutter.
