@@ -85,13 +85,14 @@ cp .env.example .env
 
 docker compose up -d --build
 
-# migration + seed awal (seed hanya jika diizinkan)
+# migration + seed awal
 docker compose --profile tools run --rm migrate
+docker compose --profile tools run --rm seed
 ```
 
-Seed di production diblokir kecuali `SEED_ALLOW_PRODUCTION=true` dan
-`SEED_DEFAULT_PASSWORD` di-set. Untuk production sebaiknya buat user admin secara
-terkontrol, bukan memakai password default.
+Seed di production diblokir kecuali `SEED_ALLOW_PRODUCTION=true` (service `seed`
+sudah men-set-nya) dan `SEED_DEFAULT_PASSWORD` di-set. **Ganti password default
+setelah login pertama**; jangan biarkan kredensial contoh aktif.
 
 ## Perintah penting
 

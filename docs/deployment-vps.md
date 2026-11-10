@@ -112,9 +112,15 @@ Jalankan:
 ```bash
 docker compose up -d --build
 
-# setelah migration tersedia:
+# migration + seed awal:
 docker compose --profile tools run --rm migrate
+docker compose --profile tools run --rm seed
 ```
+
+- Service `migrate`/`seed` memakai target build (dev dependencies); run pertama
+  bisa beberapa menit, berikutnya cepat karena cache.
+- Seed membuat user contoh (`admin@privis.id` dll) dengan
+  `SEED_DEFAULT_PASSWORD`. **Ganti kredensial sebelum dipakai nyata.**
 
 Verifikasi dari VPS:
 

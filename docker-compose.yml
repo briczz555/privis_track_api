@@ -109,6 +109,24 @@ services:
       postgres:
         condition: service_healthy
 
+  # Seed data contoh (user, klien, proyek, dokumen, aktivitas).
+  #   docker compose --profile tools run --rm seed
+  seed:
+    profiles: ["tools"]
+    build:
+      context: .
+      target: build
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-privis}:${POSTGRES_PASSWORD:-privis_dev_password}@postgres:5432/${POSTGRES_DB:-privis_track}?schema=public
+      SEED_ALLOW_PRODUCTION: "true"
+      SEED_DEFAULT_PASSWORD: ${SEED_DEFAULT_PASSWORD:-Privis123!}
+    command: ["npx", "prisma", "db", "seed"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   postgres_data:
   minio_data:
