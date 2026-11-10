@@ -77,15 +77,32 @@ npm run start:dev             # http://localhost:3000
 
 ## Deploy di VPS (Docker)
 
+Cara singkat (disarankan):
+
 ```bash
-git clone https://github.com/briczz555/privis_track_api.git
-cd privis_track_api
-cp .env.example .env
-# edit .env: password Postgres/MinIO, JWT secret (openssl rand -hex 32)
+cd ~/privis_track_api
+./build.sh            # pull, build, migrate, restart, healthcheck
+```
 
+Seed awal cukup sekali:
+
+```bash
+SEED=1 ./build.sh
+```
+
+Opsi lain:
+
+```bash
+NO_CACHE=1 ./build.sh      # rebuild tanpa cache
+./build.sh develop         # deploy branch lain
+FORCE=1 ./build.sh         # izinkan .env dengan placeholder (tidak disarankan)
+```
+
+Atau manual:
+
+```bash
+git pull
 docker compose up -d --build
-
-# migration + seed awal
 docker compose --profile tools run --rm migrate
 docker compose --profile tools run --rm seed
 ```

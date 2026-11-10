@@ -110,17 +110,24 @@ services:
 Jalankan:
 
 ```bash
-docker compose up -d --build
+./build.sh
+```
 
-# migration + seed awal:
+Perintah `build.sh` melakukan: pull branch `main`, build image, migrate database,
+restart container, prune image lama, lalu healthcheck `http://127.0.0.1:3000/health`.
+Seed awal (sekali saja):
+
+```bash
+SEED=1 ./build.sh
+```
+
+Manual (jika tidak memakai script):
+
+```bash
+docker compose up -d --build
 docker compose --profile tools run --rm migrate
 docker compose --profile tools run --rm seed
 ```
-
-- Service `migrate`/`seed` memakai target build (dev dependencies); run pertama
-  bisa beberapa menit, berikutnya cepat karena cache.
-- Seed membuat user contoh (`admin@privis.id` dll) dengan
-  `SEED_DEFAULT_PASSWORD`. **Ganti kredensial sebelum dipakai nyata.**
 
 Verifikasi dari VPS:
 
