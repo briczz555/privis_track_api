@@ -2,7 +2,7 @@
 
 Backend Fase 2 untuk aplikasi **PriVis Track** — NestJS 12 + Prisma + PostgreSQL + MinIO (S3-compatible).
 
-**Status:** auth, endpoint baca, upload, download, dan hapus dokumen sudah berjalan. Endpoint tulis (update proyek/tahap) belum.
+**Status:** auth, endpoint baca, upload/download, hapus dokumen, serta PATCH proyek/tahap sudah berjalan. Tinggal hardening (rate limit, Swagger, magic bytes) dan user management.
 
 - Kontrak API (draft): `../privis_track/docs/api-contract.md` dan `../privis_track/docs/openapi.yaml`
   (masih berada di repo aplikasi Flutter untuk review; setelah disetujui dipindahkan ke `docs/` repo ini)
@@ -37,7 +37,10 @@ Backend Fase 2 untuk aplikasi **PriVis Track** — NestJS 12 + Prisma + PostgreS
 | GET | `/v1/projects/{code}/stages/{stage_no}/documents` | bearer | daftar dokumen tahap |
 | GET | `/v1/documents/{id}/download` | bearer | download stream (Range support) |
 | DELETE | `/v1/documents/{id}` | admin/pm | soft delete dokumen |
-Belum tersedia: `PATCH /projects/{code}` dan `PATCH /projects/{code}/stages/{stage_no}`.
+| PATCH | `/v1/projects/{code}` | admin/pm | ubah status / current_stage / due_date |
+| PATCH | `/v1/projects/{code}/stages/{stage_no}` | admin/pm | tandai selesai / buka kembali tahap |
+
+Belum tersedia: ganti password, user management, Swagger runtime, rate limiting login.
 
 ## Login hasil seed (development)
 
@@ -163,7 +166,7 @@ Lihat `.env.example`. Variabel utama:
 | `MINIO_IMAGE` | override image MinIO (default Chainguard, dipin digest) |
 | `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` | secret token (wajib diganti) |
 | `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL` | masa berlaku token (detik) |
-| `MAX_UPLOAD_MB` | batas upload (default 20, belum dipakai endpoint upload) |
+| `MAX_UPLOAD_MB` | batas upload (default 20) |
 | `TRUST_PROXY` | jumlah hop proxy (1 untuk Cloudflare Tunnel + NPM) |
 | `APP_BASE_URL` | URL publik API |
 | `SEED_DEFAULT_PASSWORD` | password seed development |
@@ -171,7 +174,7 @@ Lihat `.env.example`. Variabel utama:
 
 ## Langkah berikutnya
 
-1. `PATCH /projects/{code}` dan `PATCH /projects/{code}/stages/{stage_no}`.
-2. Upload dokumen (MinIO multipart) + download stream + activity log.
-3. Swagger/OpenAPI runtime + rate limiting login.
-4. Wiring Dio di aplikasi Flutter.
+1. Hardening: rate limiting login, Swagger runtime, validasi magic-bytes upload, service account S3.
+2. Endpoint ganti password + user management.
+3. Backup offsite otomatis + monitoring uptime.
+4. Aksi hapus dokumen & kelola proyek di UI Flutter (endpoint sudah tersedia).

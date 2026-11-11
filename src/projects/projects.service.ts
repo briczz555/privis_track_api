@@ -1,7 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import type { ActivityType, Prisma, ProjectStatus } from '@prisma/client';
+import type { AuthenticatedUser } from '../common/types/authenticated-user.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { QueryProjectsDto } from './dto/query-projects.dto.js';
+import type { UpdateProjectDto } from './dto/update-project.dto.js';
 import {
   mapProjectDetail,
   mapProjectSummary,
@@ -84,5 +90,137 @@ export class ProjectsService {
     }
 
     return mapProjectDetail(project);
+  }
+
+  async updateProject(
+    code: string,
+    dto: UpdateProjectDto,
+    actor: AuthenticatedUser,
+  ) {
+    const project = await this.prisma.project.findUnique({ where: { code } });
+    if (!project) throw new NotFoundException('Proyek tidak ditemukan.');
+
+    const data: Prisma.ProjectUpdateInput = {};
+    if (dto.status !== undefined) data.status = dto.status;
+    if (dto.current_stage !== undefined) {
+      data.currentStage = dto.current_stage;
+    }
+    if (dto.due_date !== undefined) {
+      data.dueDate = dto.due_date
+        ? new Date(`${dto.due_date}T00:00:00.000Z`)
+        : null;
+    }
+
+    if (Object.keys(data).length === 0) {
+      throw new BadRequestException('Tidak ada field yang diubah.');
+    }
+
+    const updated = await this.prisma.project.update({
+      where: { code },
+      data,
+      include: projectListInclude,
+    });
+
+    await this.createActivity({
+      projectId: project.id,
+      actor,
+      type: 'project_updated',
+      action: 'memperbarui proyek',
+      target: project.name,
+    });
+
+    return mapProjectSummary(updated);
+  }
+
+  async updateStage(
+    code: string,
+    stageNo: number,
+    isCompleted: boolean,
+    actor: AuthenticatedUser,
+  ) {
+    const stage = await this.prisma.projectStage.findFirst({
+      where: { stageNo, project: { code } },
+      include: { project: true },
+    });
+
+    if (!stage) {
+      throw new NotFoundException('Proyek atau tahap tidak ditemukan.');
+    }
+
+    const updatedStage = await this.prisma.projectStage.update({
+      where: { id: stage.id },
+      data: {
+        isCompleted,
+        completedAt: isCompleted ? new Date() : null,
+      },
+    });
+
+    const stages = await this.prisma.projectStage.findMany({
+      where: { projectId: stage.projectId },
+      orderBy: { stageNo: 'asc' },
+    });
+
+    const completedStages = stages.filter((item) => item.isCompleted).length;
+    const nextStage = stages.find((item) => !item.isCompleted);
+
+    let currentStage = nextStage?.stageNo ?? stages.length;
+    if (completedStages === 0 && stage.project.status === 'not_started') {
+      currentStage = 0;
+    }
+
+    let status: ProjectStatus = stage.project.status;
+    if (isCompleted) {
+      if (completedStages === stages.length) {
+        status = 'completed';
+      } else if (status === 'not_started') {
+        status = 'in_progress';
+      }
+    } else {
+      status = 'in_progress';
+    }
+
+    await this.prisma.project.update({
+      where: { id: stage.projectId },
+      data: { currentStage, status },
+    });
+
+    await this.createActivity({
+      projectId: stage.projectId,
+      actor,
+      type: isCompleted ? 'stage_completed' : 'stage_reopened',
+      action: isCompleted ? 'menyelesaikan tahap' : 'membuka kembali tahap',
+      target: updatedStage.title,
+    });
+
+    const documentCount = await this.prisma.document.count({
+      where: { stageId: updatedStage.id, deletedAt: null },
+    });
+
+    return {
+      stage_no: updatedStage.stageNo,
+      title: updatedStage.title,
+      is_completed: updatedStage.isCompleted,
+      completed_at: updatedStage.completedAt?.toISOString() ?? null,
+      document_count: documentCount,
+    };
+  }
+
+  private async createActivity(input: {
+    projectId: string;
+    actor: AuthenticatedUser;
+    type: ActivityType;
+    action: string;
+    target: string;
+  }): Promise<void> {
+    await this.prisma.activity.create({
+      data: {
+        projectId: input.projectId,
+        actorId: input.actor.id,
+        type: input.type,
+        division: input.actor.division ?? 'Internal',
+        action: input.action,
+        target: input.target,
+      },
+    });
   }
 }
