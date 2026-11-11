@@ -198,6 +198,6 @@ Simpan backup di luar laptop (object storage lain), dan uji restore secara berka
 
 - Jangan publish port `3000`, `5433`, `9000`, `9001` ke publik.
 - `/docs` nonaktif di produksi atau dilindungi Cloudflare Access (jangan seluruh `/v1`).
-- Gunakan service account S3 khusus untuk API (bukan root MinIO) saat implementasi upload.
+- API saat ini memakai kredensial root MinIO untuk upload/download; buat service account S3 khusus saat hardening produksi.
 - Monitor uptime lewat Cloudflare/healthcheck; laptop lama perlu UPS dan pengaturan auto-restart.
 - Update image secara berkala (MinIO dipin digest Chainguard; ganti digest di `.env`).

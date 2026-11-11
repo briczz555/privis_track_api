@@ -27,6 +27,7 @@
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1166.0",
     "@nestjs/common": "^12.0.1",
     "@nestjs/config": "^12.1.1",
     "@nestjs/core": "^12.0.1",
@@ -51,6 +52,7 @@
     "@nestjs/schematics": "^12.0.0",
     "@nestjs/testing": "^12.0.1",
     "@types/express": "^5.0.0",
+    "@types/multer": "^2.3.0",
     "@types/node": "^24.0.0",
     "@types/passport-jwt": "^4.0.1",
     "@types/supertest": "^7.0.0",

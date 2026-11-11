@@ -11,8 +11,7 @@ const envSchema = z.object({
   APP_BASE_URL: z.string().url().optional(),
   TRUST_PROXY: z.coerce.number().int().nonnegative().default(0),
   MAX_UPLOAD_MB: z.coerce.number().int().positive().default(20),
-  CORS_ORIGINS: z.string().optional(),
-});
+  CORS_ORIGINS: z.string().optional(),});
 
 export type Env = z.infer<typeof envSchema>;
 

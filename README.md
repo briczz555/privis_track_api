@@ -2,7 +2,7 @@
 
 Backend Fase 2 untuk aplikasi **PriVis Track** — NestJS 12 + Prisma + PostgreSQL + MinIO (S3-compatible).
 
-**Status:** endpoint baca + auth sudah berjalan. Upload/download dokumen dan endpoint tulis (update proyek/tahap) belum diimplementasikan.
+**Status:** auth, endpoint baca, upload, download, dan hapus dokumen sudah berjalan. Endpoint tulis (update proyek/tahap) belum.
 
 - Kontrak API (draft): `../privis_track/docs/api-contract.md` dan `../privis_track/docs/openapi.yaml`
   (masih berada di repo aplikasi Flutter untuk review; setelah disetujui dipindahkan ke `docs/` repo ini)
@@ -33,9 +33,11 @@ Backend Fase 2 untuk aplikasi **PriVis Track** — NestJS 12 + Prisma + PostgreS
 | GET | `/v1/projects` | bearer | daftar proyek + filter/pagination |
 | GET | `/v1/projects/{code}` | bearer | detail proyek + klien + 8 tahap + dokumen |
 | GET | `/v1/activities` | bearer | feed aktivitas (cursor) |
-
-Belum tersedia: `PATCH /projects/{code}`, `PATCH /projects/{code}/stages/{stage_no}`,
-upload/download dokumen.
+| POST | `/v1/projects/{code}/stages/{stage_no}/documents` | bearer | upload multipart (maks 20 MB) |
+| GET | `/v1/projects/{code}/stages/{stage_no}/documents` | bearer | daftar dokumen tahap |
+| GET | `/v1/documents/{id}/download` | bearer | download stream (Range support) |
+| DELETE | `/v1/documents/{id}` | admin/pm | soft delete dokumen |
+Belum tersedia: `PATCH /projects/{code}` dan `PATCH /projects/{code}/stages/{stage_no}`.
 
 ## Login hasil seed (development)
 

@@ -7,9 +7,11 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { RolesGuard } from './common/guards/roles.guard.js';
 import { validateEnv } from './config/env.validation.js';
 import { DashboardModule } from './dashboard/dashboard.module.js';
+import { DocumentsModule } from './documents/documents.module.js';
 import { HealthController } from './health/health.controller.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { ProjectsModule } from './projects/projects.module.js';
+import { StorageModule } from './storage/storage.module.js';
 
 @Module({
   imports: [
@@ -18,10 +20,12 @@ import { ProjectsModule } from './projects/projects.module.js';
       validate: validateEnv,
     }),
     PrismaModule,
+    StorageModule,
     AuthModule,
     ProjectsModule,
     DashboardModule,
     ActivitiesModule,
+    DocumentsModule,
   ],
   controllers: [HealthController],
   providers: [
