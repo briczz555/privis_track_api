@@ -2,7 +2,7 @@
 
 Backend Fase 2 untuk aplikasi **PriVis Track** — NestJS 12 + Prisma + PostgreSQL + MinIO (S3-compatible).
 
-**Status:** auth, endpoint baca, upload/download/hapus dokumen, PATCH proyek/tahap, ganti password, rate limit, Swagger, validasi magic-bytes, dan akun layanan MinIO sudah berjalan. Tinggal user management dan operasional (backup/monitoring).
+**Status:** auth, endpoint baca, upload/download/hapus dokumen, PATCH proyek/tahap, ganti password, hardening, dan manajemen user sudah berjalan. Tinggal operasional (backup/monitoring) dan penyempurnaan UI.
 
 - Kontrak API (draft): `../privis_track/docs/api-contract.md` dan `../privis_track/docs/openapi.yaml`
   (masih berada di repo aplikasi Flutter untuk review; setelah disetujui dipindahkan ke `docs/` repo ini)
@@ -40,8 +40,12 @@ Backend Fase 2 untuk aplikasi **PriVis Track** — NestJS 12 + Prisma + PostgreS
 | PATCH | `/v1/projects/{code}` | admin/pm | ubah status / current_stage / due_date |
 | PATCH | `/v1/projects/{code}/stages/{stage_no}` | admin/pm | tandai selesai / buka kembali tahap |
 | POST | `/v1/auth/change-password` | bearer | ganti password + rotasi sesi |
+| GET | `/v1/users` | admin | daftar user internal |
+| POST | `/v1/users` | admin | tambah user |
+| PATCH | `/v1/users/{id}` | admin | ubah nama/role/divisi/status aktif |
+| POST | `/v1/users/{id}/reset-password` | admin | reset password + cabut semua sesi user |
 
-Belum tersedia: user management (tambah/nonaktifkan akun, reset password oleh admin).
+Belum tersedia: audit log aksi admin dan antivirus scan dokumen.
 
 Dokumentasi interaktif: `http://<host>/docs` (Swagger UI) dan `/docs-json`
 (OpenAPI 3). Nonaktifkan dengan `SWAGGER_ENABLED=false` bila tidak diperlukan.
@@ -185,7 +189,7 @@ Lihat `.env.example`. Variabel utama:
 
 ## Langkah berikutnya
 
-1. User management: tambah/nonaktifkan akun dan reset password oleh admin.
-2. Backup offsite otomatis + monitoring uptime.
-3. Pagination UI >100 proyek dan deep-link setelah login di Flutter.
-4. Opsional: antivirus scan sebelum dokumen dapat diunduh.
+1. Backup offsite otomatis + monitoring uptime.
+2. Pagination UI >100 proyek dan deep-link setelah login di Flutter.
+3. Opsional: antivirus scan sebelum dokumen dapat diunduh.
+4. Opsional: audit log aksi admin (manajemen user belum masuk activity proyek).

@@ -14,6 +14,7 @@ import { HealthController } from './health/health.controller.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { ProjectsModule } from './projects/projects.module.js';
 import { StorageModule } from './storage/storage.module.js';
+import { UsersModule } from './users/users.module.js';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { StorageModule } from './storage/storage.module.js';
     DashboardModule,
     ActivitiesModule,
     DocumentsModule,
+    UsersModule,
   ],
   controllers: [HealthController],
   providers: [
