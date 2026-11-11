@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { User } from '@prisma/client';
@@ -86,15 +90,53 @@ export class AuthService {
     });
   }
 
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<AuthTokens> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Sesi berakhir, silakan login kembali.');
+    }
+
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) {
+      throw new BadRequestException('Password saat ini salah.');
+    }
+
+    if (await bcrypt.compare(newPassword, user.passwordHash)) {
+      throw new BadRequestException(
+        'Password baru harus berbeda dari password saat ini.',
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const [updated] = await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash },
+      }),
+      // Cabut semua sesi lama; client menerima token baru di respons.
+      this.prisma.refreshToken.updateMany({
+        where: { userId: user.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
+
+    return this.issueTokens(updated);
+  }
+
   async me(user: AuthenticatedUser): Promise<PublicUser> {
     const current = await this.prisma.user.findUnique({
       where: { id: user.id },
     });
 
     if (!current || !current.isActive) {
-      throw new UnauthorizedException(
-        'Sesi berakhir, silakan login kembali.',
-      );
+      throw new UnauthorizedException('Sesi berakhir, silakan login kembali.');
     }
 
     return this.toPublicUser(current);

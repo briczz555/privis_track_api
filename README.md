@@ -39,8 +39,9 @@ Backend Fase 2 untuk aplikasi **PriVis Track** — NestJS 12 + Prisma + PostgreS
 | DELETE | `/v1/documents/{id}` | admin/pm | soft delete dokumen |
 | PATCH | `/v1/projects/{code}` | admin/pm | ubah status / current_stage / due_date |
 | PATCH | `/v1/projects/{code}/stages/{stage_no}` | admin/pm | tandai selesai / buka kembali tahap |
+| POST | `/v1/auth/change-password` | bearer | ganti password + rotasi sesi |
 
-Belum tersedia: ganti password, user management, Swagger runtime, rate limiting login.
+Belum tersedia: user management, Swagger runtime, rate limiting login.
 
 ## Login hasil seed (development)
 
@@ -175,6 +176,6 @@ Lihat `.env.example`. Variabel utama:
 ## Langkah berikutnya
 
 1. Hardening: rate limiting login, Swagger runtime, validasi magic-bytes upload, service account S3.
-2. Endpoint ganti password + user management.
+2. User management (tambah/nonaktifkan akun, reset password oleh admin).
 3. Backup offsite otomatis + monitoring uptime.
-4. Aksi hapus dokumen & kelola proyek di UI Flutter (endpoint sudah tersedia).
+4. Pagination UI >100 proyek dan deep-link setelah login di Flutter.
