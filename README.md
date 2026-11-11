@@ -31,13 +31,15 @@ Backend Fase 2 untuk aplikasi **PriVis Track** — NestJS 12 + Prisma + PostgreS
 | GET | `/v1/me` | bearer | profil user |
 | GET | `/v1/dashboard` | bearer | agregat portfolio, proyek aktif, aktivitas |
 | GET | `/v1/projects` | bearer | daftar proyek + filter/pagination |
+| POST | `/v1/projects` | admin/pm | buat proyek + 8 tahap + klien |
+| GET | `/v1/clients` | bearer | daftar klien untuk dropdown |
 | GET | `/v1/projects/{code}` | bearer | detail proyek + klien + 8 tahap + dokumen |
 | GET | `/v1/activities` | bearer | feed aktivitas (cursor) |
 | POST | `/v1/projects/{code}/stages/{stage_no}/documents` | bearer | upload multipart (maks 20 MB) |
 | GET | `/v1/projects/{code}/stages/{stage_no}/documents` | bearer | daftar dokumen tahap |
 | GET | `/v1/documents/{id}/download` | bearer | download stream (Range support) |
 | DELETE | `/v1/documents/{id}` | admin/pm | soft delete dokumen |
-| PATCH | `/v1/projects/{code}` | admin/pm | ubah status / current_stage / due_date |
+| PATCH | `/v1/projects/{code}` | admin/pm | ubah nama/tanggal/status/klien |
 | PATCH | `/v1/projects/{code}/stages/{stage_no}` | admin/pm | tandai selesai / buka kembali tahap |
 | POST | `/v1/auth/change-password` | bearer | ganti password + rotasi sesi |
 | GET | `/v1/users` | admin | daftar user internal |

@@ -4,6 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ActivitiesModule } from './activities/activities.module.js';
 import { AuthModule } from './auth/auth.module.js';
+import { ClientsModule } from './clients/clients.module.js';
 import { AppThrottlerGuard } from './common/guards/app-throttler.guard.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { RolesGuard } from './common/guards/roles.guard.js';
@@ -27,6 +28,7 @@ import { UsersModule } from './users/users.module.js';
     PrismaModule,
     StorageModule,
     AuthModule,
+    ClientsModule,
     ProjectsModule,
     DashboardModule,
     ActivitiesModule,

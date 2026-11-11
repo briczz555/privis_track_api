@@ -94,6 +94,7 @@ export function mapProjectSummary(row: ProjectListRow) {
     completed_stages: state.completedStages,
     progress_percent: state.progressPercent,
     document_count: row.documents.length,
+    start_date: formatDate(row.startDate),
     due_date: formatDate(row.dueDate),
     updated_at: row.updatedAt.toISOString(),
   };
@@ -139,6 +140,8 @@ export function mapProjectDetail(row: ProjectDetailRow) {
         uploaded_at: document.uploadedAt.toISOString(),
       })),
     })),
+    start_date: formatDate(row.startDate),
+    due_date: formatDate(row.dueDate),
     updated_at: row.updatedAt.toISOString(),
   };
 }
