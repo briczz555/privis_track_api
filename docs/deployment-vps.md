@@ -44,6 +44,7 @@ nano .env
 ```
 
 Wajib diganti di `.env`: `POSTGRES_PASSWORD`, `MINIO_ROOT_PASSWORD`,
+`MINIO_API_PASSWORD` (akun layanan MinIO, min. 12 karakter dan beda dari root),
 `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` (`openssl rand -hex 32`).
 
 ## 3. Cloudflare Tunnel
@@ -121,6 +122,11 @@ Seed awal (sekali saja):
 SEED=1 ./build.sh
 ```
 
+Compose juga menjalankan container satu-jalan untuk MinIO: `minio-init` (bucket
+privat + konfigurasi `mc`), `minio-policy`, `minio-user`, dan `minio-user-policy`.
+Akun layanan `MINIO_API_USER` dibuat dengan policy `deploy/minio-policy.json`;
+kredensial root hanya dipakai container init, bukan proses API.
+
 Manual (jika tidak memakai script):
 
 ```bash
@@ -149,7 +155,7 @@ curl -I https://privis.briczz.my.id/health
 |---|---|
 | API | `https://privis.briczz.my.id/v1` |
 | Health | `https://privis.briczz.my.id/health` |
-| Swagger | `https://privis.briczz.my.id/docs` (batasi akses) |
+| Swagger | `https://privis.briczz.my.id/docs` (aktif; matikan dengan `SWAGGER_ENABLED=false`) |
 | Flutter | `--dart-define=API_BASE_URL=https://privis.briczz.my.id/v1` |
 | MinIO | internal; console via `ssh -L 9001:127.0.0.1:9001 briczz@vps` |
 
@@ -158,9 +164,11 @@ Env terkait di `.env`:
 ```env
 APP_BASE_URL=https://privis.briczz.my.id
 TRUST_PROXY=1
+SWAGGER_ENABLED=true
 ```
 
 `TRUST_PROXY` penting agar rate limit/logging membaca `CF-Connecting-IP`, bukan IP tunnel.
+Rate limit bawaan API: 120 request/menit/IP dan 5 percobaan login/menit/IP.
 
 ## 7. Backup (wajib, server laptop)
 
@@ -192,12 +200,14 @@ Simpan backup di luar laptop (object storage lain), dan uji restore secara berka
 | 401 berulang | Jam server/token | cek waktu sistem (`timedatectl`), refresh token rotation |
 | 404 dari NPM | Forward host/port salah | pastikan `privis-track-api` + `3000`, network `proxy-net` |
 | Semua request dari IP sama | trust proxy | set `TRUST_PROXY=1`, gunakan `CF-Connecting-IP` |
+| 429 saat login | rate limit 5/menit/IP | tunggu 1 menit; cek apakah ada percobaan berulang |
 | MinIO tidak bisa diakses dari HP | memang internal | download lewat API (`/documents/{id}/download`) |
 
 ## 9. Keamanan & operasional
 
 - Jangan publish port `3000`, `5433`, `9000`, `9001` ke publik.
-- `/docs` nonaktif di produksi atau dilindungi Cloudflare Access (jangan seluruh `/v1`).
-- API saat ini memakai kredensial root MinIO untuk upload/download; buat service account S3 khusus saat hardening produksi.
+- `/docs` aktif secara default. Matikan (`SWAGGER_ENABLED=false`) atau lindungi dengan Cloudflare Access bila tidak diperlukan.
+- API memakai akun layanan MinIO berpolicy least-privilege (`deploy/minio-policy.json`); kredensial root hanya dipakai container init.
+- Rate limit aplikasi: 120 request/menit/IP, login 5 percobaan/menit/IP. WAF Cloudflare bersifat opsional sebagai lapisan tambahan.
 - Monitor uptime lewat Cloudflare/healthcheck; laptop lama perlu UPS dan pengaturan auto-restart.
 - Update image secara berkala (MinIO dipin digest Chainguard; ganti digest di `.env`).

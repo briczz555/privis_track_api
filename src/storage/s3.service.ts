@@ -38,13 +38,15 @@ export class S3Service implements OnModuleInit {
       endpoint,
       forcePathStyle: true,
       credentials: {
+        // Utamakan akun layanan (MINIO_ACCESS_KEY/SECRET_KEY). Root hanya
+        // dipakai container init MinIO, bukan proses API.
         accessKeyId:
-          config.get<string>('MINIO_ROOT_USER') ??
           config.get<string>('MINIO_ACCESS_KEY') ??
+          config.get<string>('MINIO_ROOT_USER') ??
           'minioadmin',
         secretAccessKey:
-          config.get<string>('MINIO_ROOT_PASSWORD') ??
           config.get<string>('MINIO_SECRET_KEY') ??
+          config.get<string>('MINIO_ROOT_PASSWORD') ??
           'minioadmin',
       },
     });

@@ -53,6 +53,11 @@ if grep -Eq 'ganti-dengan|ubah-password|ubah-secret' .env && [ "$FORCE" != "1" ]
   fail ".env masih berisi placeholder (ganti-dengan/ubah-...). Perbaiki dulu, atau jalankan dengan FORCE=1."
 fi
 
+minio_api_password="$(grep -E '^MINIO_API_PASSWORD=' .env | tail -n 1 | cut -d= -f2- || true)"
+if [ "${#minio_api_password}" -lt 12 ]; then
+  fail "MINIO_API_PASSWORD wajib diisi minimal 12 karakter di .env (akun layanan MinIO, bukan root)."
+fi
+
 if [ "$RUN_SEED" = "1" ]; then
   seed_password="$(grep -E '^SEED_DEFAULT_PASSWORD=' .env | tail -n 1 | cut -d= -f2- || true)"
   if [ -z "$seed_password" ] || [ "$seed_password" = "Privis123!" ]; then

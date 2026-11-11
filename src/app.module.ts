@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { ActivitiesModule } from './activities/activities.module.js';
 import { AuthModule } from './auth/auth.module.js';
+import { AppThrottlerGuard } from './common/guards/app-throttler.guard.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { RolesGuard } from './common/guards/roles.guard.js';
 import { validateEnv } from './config/env.validation.js';
@@ -19,6 +21,8 @@ import { StorageModule } from './storage/storage.module.js';
       isGlobal: true,
       validate: validateEnv,
     }),
+    // Batas default per IP: 120 request/menit. Login punya batas lebih ketat.
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     PrismaModule,
     StorageModule,
     AuthModule,
@@ -29,6 +33,7 @@ import { StorageModule } from './storage/storage.module.js';
   ],
   controllers: [HealthController],
   providers: [
+    { provide: APP_GUARD, useClass: AppThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],

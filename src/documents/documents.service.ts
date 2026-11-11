@@ -16,6 +16,7 @@ import { randomUUID } from 'node:crypto';
 import type { AuthenticatedUser } from '../common/types/authenticated-user.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { S3Service, type StoredObject } from '../storage/s3.service.js';
+import { matchesFileSignature } from './file-signature.js';
 
 export interface UploadedDocumentFile {
   originalname: string;
@@ -83,9 +84,7 @@ export class DocumentsService {
 
     const maxMb = this.config.get<number>('MAX_UPLOAD_MB') ?? 20;
     if (file.size > maxMb * 1024 * 1024) {
-      throw new PayloadTooLargeException(
-        `Ukuran file maksimum ${maxMb} MB.`,
-      );
+      throw new PayloadTooLargeException(`Ukuran file maksimum ${maxMb} MB.`);
     }
 
     const originalName = file.originalname.trim();
@@ -107,6 +106,12 @@ export class DocumentsService {
       throw new UnsupportedMediaTypeException('MIME type tidak didukung.');
     }
 
+    if (!matchesFileSignature(extension, file.buffer)) {
+      throw new UnsupportedMediaTypeException(
+        `Isi file tidak sesuai dengan ekstensi .${extension}.`,
+      );
+    }
+
     const stage = await this.prisma.projectStage.findFirst({
       where: {
         stageNo,
@@ -115,7 +120,8 @@ export class DocumentsService {
       include: { project: { select: { id: true, code: true } } },
     });
 
-    if (!stage) throw new NotFoundException('Proyek atau tahap tidak ditemukan.');
+    if (!stage)
+      throw new NotFoundException('Proyek atau tahap tidak ditemukan.');
 
     const safeName = displayName.replace(/[^a-zA-Z0-9._-]/g, '_');
     const storageKey = `documents/${stage.project.code}/stage-${stageNo}/${randomUUID()}-${safeName}`;
@@ -157,7 +163,8 @@ export class DocumentsService {
       select: { id: true },
     });
 
-    if (!stage) throw new NotFoundException('Proyek atau tahap tidak ditemukan.');
+    if (!stage)
+      throw new NotFoundException('Proyek atau tahap tidak ditemukan.');
 
     const documents = await this.prisma.document.findMany({
       where: { stageId: stage.id, deletedAt: null },

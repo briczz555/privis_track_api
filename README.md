@@ -2,7 +2,7 @@
 
 Backend Fase 2 untuk aplikasi **PriVis Track** — NestJS 12 + Prisma + PostgreSQL + MinIO (S3-compatible).
 
-**Status:** auth, endpoint baca, upload/download, hapus dokumen, serta PATCH proyek/tahap sudah berjalan. Tinggal hardening (rate limit, Swagger, magic bytes) dan user management.
+**Status:** auth, endpoint baca, upload/download/hapus dokumen, PATCH proyek/tahap, ganti password, rate limit, Swagger, validasi magic-bytes, dan akun layanan MinIO sudah berjalan. Tinggal user management dan operasional (backup/monitoring).
 
 - Kontrak API (draft): `../privis_track/docs/api-contract.md` dan `../privis_track/docs/openapi.yaml`
   (masih berada di repo aplikasi Flutter untuk review; setelah disetujui dipindahkan ke `docs/` repo ini)
@@ -41,7 +41,12 @@ Backend Fase 2 untuk aplikasi **PriVis Track** — NestJS 12 + Prisma + PostgreS
 | PATCH | `/v1/projects/{code}/stages/{stage_no}` | admin/pm | tandai selesai / buka kembali tahap |
 | POST | `/v1/auth/change-password` | bearer | ganti password + rotasi sesi |
 
-Belum tersedia: user management, Swagger runtime, rate limiting login.
+Belum tersedia: user management (tambah/nonaktifkan akun, reset password oleh admin).
+
+Dokumentasi interaktif: `http://<host>/docs` (Swagger UI) dan `/docs-json`
+(OpenAPI 3). Nonaktifkan dengan `SWAGGER_ENABLED=false` bila tidak diperlukan.
+Rate limit: 120 request/menit/IP untuk seluruh API dan 5 percobaan login/menit/IP
+(respons `429 rate_limited`).
 
 ## Login hasil seed (development)
 
@@ -150,8 +155,9 @@ privis_track_api/
 │   ├── prisma/             # PrismaModule/Service
 │   └── projects/           # daftar & detail proyek, mapper progres
 ├── docs/deployment-vps.md
+├── deploy/minio-policy.json # policy least-privilege akun layanan MinIO
 ├── prisma.config.ts
-├── docker-compose.yml      # api + postgres + minio + minio-init + migrate
+├── docker-compose.yml      # api + postgres + minio + init (bucket/akun) + migrate
 ├── Dockerfile              # multi-stage
 └── .env.example
 ```
@@ -165,9 +171,13 @@ Lihat `.env.example`. Variabel utama:
 | `DATABASE_URL` | koneksi PostgreSQL (di Docker Compose di-override ke host `postgres`) |
 | `MINIO_*` | endpoint, kredensial, bucket, public URL |
 | `MINIO_IMAGE` | override image MinIO (default Chainguard, dipin digest) |
+| `MINIO_CLIENT_IMAGE` | image `mc` untuk init akun layanan (default Chainguard) |
+| `MINIO_API_USER`, `MINIO_API_PASSWORD` | akun layanan MinIO yang dipakai API (dibuat otomatis) |
+| `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY` | kredensial S3 proses API (diisi Compose dari akun layanan) |
 | `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` | secret token (wajib diganti) |
 | `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL` | masa berlaku token (detik) |
 | `MAX_UPLOAD_MB` | batas upload (default 20) |
+| `SWAGGER_ENABLED` | aktif/nonaktifkan dokumentasi `/docs` (default `true`) |
 | `TRUST_PROXY` | jumlah hop proxy (1 untuk Cloudflare Tunnel + NPM) |
 | `APP_BASE_URL` | URL publik API |
 | `SEED_DEFAULT_PASSWORD` | password seed development |
@@ -175,7 +185,7 @@ Lihat `.env.example`. Variabel utama:
 
 ## Langkah berikutnya
 
-1. Hardening: rate limiting login, Swagger runtime, validasi magic-bytes upload, service account S3.
-2. User management (tambah/nonaktifkan akun, reset password oleh admin).
-3. Backup offsite otomatis + monitoring uptime.
-4. Pagination UI >100 proyek dan deep-link setelah login di Flutter.
+1. User management: tambah/nonaktifkan akun dan reset password oleh admin.
+2. Backup offsite otomatis + monitoring uptime.
+3. Pagination UI >100 proyek dan deep-link setelah login di Flutter.
+4. Opsional: antivirus scan sebelum dokumen dapat diunduh.

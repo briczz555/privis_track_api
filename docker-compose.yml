@@ -44,6 +44,8 @@ services:
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-privis_minio_password}
       AWS_DEFAULT_REGION: ${MINIO_REGION:-us-east-1}
       MINIO_BUCKET: ${MINIO_BUCKET:-privis-documents}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-privis_admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-privis_minio_password}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -54,9 +56,81 @@ services:
         if ! aws --endpoint-url http://minio:9000 s3api head-bucket --bucket "$$MINIO_BUCKET" >/dev/null 2>&1; then
           aws --endpoint-url http://minio:9000 s3 mb "s3://$$MINIO_BUCKET"
         fi
-        echo "minio siap: bucket $$MINIO_BUCKET (private)"
+        mkdir -p /mc
+        jq -n --arg url "http://minio:9000" \
+          --arg ak "$$MINIO_ROOT_USER" --arg sk "$$MINIO_ROOT_PASSWORD" \
+          '{version:"10",aliases:{local:{url:$$url,accessKey:$$ak,secretKey:$$sk,api:"S3v4",path:"auto"}}}' \
+          > /mc/config.json
+        chmod 777 /mc
+        chmod 644 /mc/config.json
+        echo "minio siap: bucket $$MINIO_BUCKET (private), akun layanan disiapkan"
+    volumes:
+      - mc_config:/mc
     depends_on:
       - minio
+
+  # Akun layanan MinIO (least privilege). Root hanya dipakai container init;
+  # proses API memakai MINIO_ACCESS_KEY/MINIO_SECRET_KEY.
+  #
+  # mc dijalankan satu perintah per container karena image Chainguard distroless
+  # tidak punya shell. Konfigurasi alias dibagi lewat volume `mc_config`.
+  minio-policy:
+    image: ${MINIO_CLIENT_IMAGE:-cgr.dev/chainguard/minio-client:latest}
+    restart: "no"
+    environment:
+      MC_CONFIG_DIR: /mc
+    command:
+      - admin
+      - policy
+      - create
+      - local
+      - privis-api
+      - /config/minio-policy.json
+    volumes:
+      - mc_config:/mc
+      - ./deploy/minio-policy.json:/config/minio-policy.json:ro
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
+
+  minio-user:
+    image: ${MINIO_CLIENT_IMAGE:-cgr.dev/chainguard/minio-client:latest}
+    restart: "no"
+    environment:
+      MC_CONFIG_DIR: /mc
+    command:
+      - admin
+      - user
+      - add
+      - local
+      - ${MINIO_API_USER:-privis_api}
+      - ${MINIO_API_PASSWORD:-privis_api_password}
+    volumes:
+      - mc_config:/mc
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
+
+  minio-user-policy:
+    image: ${MINIO_CLIENT_IMAGE:-cgr.dev/chainguard/minio-client:latest}
+    restart: "no"
+    environment:
+      MC_CONFIG_DIR: /mc
+    command:
+      - admin
+      - policy
+      - attach
+      - local
+      - privis-api
+      - --user
+      - ${MINIO_API_USER:-privis_api}
+    volumes:
+      - mc_config:/mc
+    depends_on:
+      minio-policy:
+        condition: service_completed_successfully
+      minio-user:
+        condition: service_completed_successfully
 
   api:
     build:
@@ -73,6 +147,8 @@ services:
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
       MINIO_USE_SSL: "false"
+      MINIO_ACCESS_KEY: ${MINIO_API_USER:-privis_api}
+      MINIO_SECRET_KEY: ${MINIO_API_PASSWORD:-privis_api_password}
       APP_BASE_URL: ${APP_BASE_URL:-https://privis.briczz.my.id}
       TRUST_PROXY: ${TRUST_PROXY:-1}
     # Hanya localhost untuk debugging. Akses publik lewat NPM/Cloudflare Tunnel.
@@ -84,7 +160,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      minio-init:
+      minio-user-policy:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health >/dev/null || exit 1"]
@@ -130,6 +206,7 @@ services:
 volumes:
   postgres_data:
   minio_data:
+  mc_config:
 
 networks:
   default:

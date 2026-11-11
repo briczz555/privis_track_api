@@ -1,7 +1,9 @@
 import { z } from 'zod';
 
 const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  NODE_ENV: z
+    .enum(['development', 'test', 'production'])
+    .default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
   DATABASE_URL: z.string().min(1),
   JWT_ACCESS_SECRET: z.string().min(16),
@@ -11,7 +13,9 @@ const envSchema = z.object({
   APP_BASE_URL: z.string().url().optional(),
   TRUST_PROXY: z.coerce.number().int().nonnegative().default(0),
   MAX_UPLOAD_MB: z.coerce.number().int().positive().default(20),
-  CORS_ORIGINS: z.string().optional(),});
+  SWAGGER_ENABLED: z.enum(['true', 'false']).default('true'),
+  CORS_ORIGINS: z.string().optional(),
+});
 
 export type Env = z.infer<typeof envSchema>;
 
