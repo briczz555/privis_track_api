@@ -342,5 +342,6 @@ sesuai. Cek juga `document_count` di dashboard.
 | `mc: Unable to initialize new alias` | Pastikan `docker compose up -d` sudah membuat `minio-init` & volume `mc_config` |
 | `flock` tidak tersedia | Script otomatis memakai lock folder; pastikan `BACKUP_DIR` bisa ditulis |
 | Backup lan lain dilewati | Proses backup sebelumnya masih berjalan; cek `ps aux | grep backup.sh` |
+| `bind: access permissions` saat `rclone authorize` di Windows | Port 53682 diblokir/reserved (Hyper-V/WSL/Docker). Jalankan `net stop winnat` sebagai Administrator, ulangi authorize, lalu `net start winnat`; atau gunakan SSH tunnel ke VPS |
 | Disk penuh | Turunkan `BACKUP_RETENTION_DAYS`, pindahkan `BACKUP_DIR` ke disk lain |
 | Restore DB gagal karena sesi aktif | Hentikan `api` dan gunakan `DROP DATABASE ... WITH (FORCE)` |
