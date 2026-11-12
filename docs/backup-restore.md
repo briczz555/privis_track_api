@@ -83,30 +83,52 @@ akun terlebih dahulu:
 rclone about gdrive:
 ```
 
-Langkah konfigurasi:
+> **Penting (2026):** rclone shared `client_id` sedang dipensiunkan. Buat OAuth
+> Client ID sendiri; rclone versi baru akan menolak melanjutkan tanpa itu.
+
+#### Membuat OAuth Client ID
+
+1. Buka <https://console.cloud.google.com/> → buat/pilih project.
+2. **APIs & Services → Library** → aktifkan **Google Drive API**.
+3. **APIs & Services → OAuth consent screen**:
+   - User type: **Internal** jika memakai Google Workspace (paling mudah,
+     tanpa verifikasi dan token tidak kedaluwarsa 7 hari), atau **External**
+     untuk Gmail biasa.
+   - Isi nama aplikasi, email pendukung, dan developer contact.
+   - Scopes: tambahkan `https://www.googleapis.com/auth/drive`.
+   - External: tambahkan akun Google Anda sebagai **Test user**.
+   - Setelah selesai, **Publish app** ke Production. Aplikasi berstatus
+     *Testing* membuat refresh token kedaluwarsa setiap 7 hari.
+4. **APIs & Services → Credentials → Create credentials → OAuth client ID**.
+5. Application type: **Desktop app** → Create.
+6. Salin **Client ID** dan **Client Secret**.
+
+#### Konfigurasi rclone
 
 ```bash
 rclone config
 # n (new remote)
 # name: gdrive
 # Storage: drive
-# client_id: kosongkan (pakai client bawaan rclone)
-# client_secret: kosongkan
+# client_id: <Client ID dari Google Cloud>
+# client_secret: <Client Secret>
 # scope: 1 (drive) — akses penuh ke folder backup
 # root_folder_id: kosongkan
 # service_account_file: kosongkan
 # Edit advanced config: n
-# Use web browser to automatically authenticate: n (VPS headless)
 ```
 
-rclone akan menampilkan perintah seperti:
+Jika muncul pertanyaan “Continue using the shared client_id?”, jawab **n** lalu
+masukkan Client ID/Secret Anda. Untuk VPS headless, pilih **n** pada
+“Use web browser to automatically authenticate”.
 
-```text
-rclone authorize "drive"
-```
+rclone akan menampilkan perintah `rclone authorize "drive" ...`. Jalankan
+**perintah lengkap yang ditampilkan** (termasuk argumen JSON berisi client ID)
+di komputer/HP yang punya browser, login Google, lalu salin token JSON ke VPS.
 
-Jalankan perintah itu di komputer/HP yang punya browser, login ke akun Google,
-lalu salin token JSON yang muncul dan tempelkan di prompt VPS.
+Alternatif yang lebih mudah: buat remote yang sama di komputer dengan browser,
+selesaikan OAuth di sana, lalu salin blok `[gdrive]` dari `rclone.conf` komputer
+ke `/root/.config/rclone/rclone.conf` di VPS (`chmod 600`).
 
 Buat folder backup dan uji:
 
