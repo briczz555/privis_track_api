@@ -41,21 +41,23 @@ export class ProjectsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async list(query: QueryProjectsDto) {
-    const where: Prisma.ProjectWhereInput = {};
+    const baseWhere: Prisma.ProjectWhereInput = {};
 
-    if (query.status) where.status = query.status;
-    if (query.client_id) where.clientId = query.client_id;
+    if (query.client_id) baseWhere.clientId = query.client_id;
     if (query.search) {
-      where.OR = [
+      baseWhere.OR = [
         { name: { contains: query.search, mode: 'insensitive' } },
         { code: { contains: query.search, mode: 'insensitive' } },
       ];
     }
 
+    const where: Prisma.ProjectWhereInput = { ...baseWhere };
+    if (query.status) where.status = query.status;
+
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
 
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total, statusRows] = await this.prisma.$transaction([
       this.prisma.project.findMany({
         where,
         include: projectListInclude,
@@ -64,7 +66,24 @@ export class ProjectsService {
         take: limit,
       }),
       this.prisma.project.count({ where }),
+      this.prisma.project.groupBy({
+        by: ['status'],
+        where: baseWhere,
+        _count: { _all: true },
+      }),
     ]);
+
+    // Hitungan seluruh status (tanpa filter status) agar chip filter tetap
+    // akurat saat daftar memakai pagination.
+    const statusCounts: Record<string, number> = {
+      not_started: 0,
+      in_progress: 0,
+      on_hold: 0,
+      completed: 0,
+    };
+    for (const row of statusRows) {
+      statusCounts[row.status] = row._count._all;
+    }
 
     return {
       data: rows.map(mapProjectSummary),
@@ -73,6 +92,7 @@ export class ProjectsService {
         limit,
         total,
         total_pages: Math.ceil(total / limit),
+        status_counts: statusCounts,
       },
     };
   }

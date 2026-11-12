@@ -31,7 +31,7 @@ Backend Fase 2 untuk aplikasi **PriVis Track** — NestJS 12 + Prisma + PostgreS
 | POST | `/v1/auth/logout` | publik | cabut refresh token |
 | GET | `/v1/me` | bearer | profil user |
 | GET | `/v1/dashboard` | bearer | agregat portfolio, proyek aktif, aktivitas |
-| GET | `/v1/projects` | bearer | daftar proyek + filter/pagination |
+| GET | `/v1/projects` | bearer | daftar proyek + filter/pagination + status_counts |
 | POST | `/v1/projects` | admin/pm | buat proyek + 8 tahap + klien |
 | GET | `/v1/clients` | bearer | daftar klien untuk dropdown |
 | GET | `/v1/projects/{code}` | bearer | detail proyek + klien + 8 tahap + dokumen |
