@@ -9,6 +9,10 @@ dist/
 .env
 .env.*
 !.env.example
+backup.env
+
+# Backup
+backups/
 
 # Test & coverage
 coverage/

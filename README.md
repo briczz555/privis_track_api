@@ -7,6 +7,7 @@ Backend Fase 2 untuk aplikasi **PriVis Track** — NestJS 12 + Prisma + PostgreS
 - Kontrak API (draft): `../privis_track/docs/api-contract.md` dan `../privis_track/docs/openapi.yaml`
   (masih berada di repo aplikasi Flutter untuk review; setelah disetujui dipindahkan ke `docs/` repo ini)
 - Panduan deploy VPS (Cloudflare Tunnel → NPM → API): [`docs/deployment-vps.md`](docs/deployment-vps.md)
+- Backup, restore, dan monitoring: [`docs/backup-restore.md`](docs/backup-restore.md)
 - Aplikasi Flutter: `../privis_track`
 
 ## Stack
@@ -188,6 +189,21 @@ Lihat `.env.example`. Variabel utama:
 | `APP_BASE_URL` | URL publik API |
 | `SEED_DEFAULT_PASSWORD` | password seed development |
 | `SEED_ALLOW_PRODUCTION` | izinkan seed di production (default tidak) |
+
+## Backup & monitoring
+
+Backup harian PostgreSQL + MinIO, upload offsite via rclone, dan monitoring
+health/usia backup/disk:
+
+```bash
+cp backup.env.example backup.env   # isi BACKUP_DIR, BACKUP_REMOTE, dll.
+chmod 600 backup.env
+./scripts/backup.sh
+./scripts/monitor.sh
+```
+
+Detail konfigurasi rclone, cron, notifikasi, dan prosedur restore:
+[`docs/backup-restore.md`](docs/backup-restore.md).
 
 ## Langkah berikutnya
 

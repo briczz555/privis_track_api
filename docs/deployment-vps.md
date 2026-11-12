@@ -170,25 +170,39 @@ SWAGGER_ENABLED=true
 `TRUST_PROXY` penting agar rate limit/logging membaca `CF-Connecting-IP`, bukan IP tunnel.
 Rate limit bawaan API: 120 request/menit/IP dan 5 percobaan login/menit/IP.
 
-## 7. Backup (wajib, server laptop)
+## 7. Backup & monitoring (wajib, server laptop)
 
-PostgreSQL:
+Skrip dan panduan lengkap ada di [`backup-restore.md`](backup-restore.md).
+Ringkas:
 
-```bash
-docker compose exec -T postgres pg_dump -U privis -d privis_track \
-  | gzip > "backup-privis-$(date +%F).sql.gz"
-```
+1. Install `rclone` dan buat remote (R2/B2/S3):
+   ```bash
+   curl https://rclone.org/install.sh | sudo bash
+   rclone config
+   ```
+2. Siapkan konfigurasi:
+   ```bash
+   cd ~/privis_track_api
+   cp backup.env.example backup.env
+   chmod 600 backup.env
+   nano backup.env
+   ```
+   Isi `BACKUP_DIR`, `BACKUP_REMOTE`, dan opsional `BACKUP_PING_URL` /
+   `ALERT_WEBHOOK_URL`.
+3. Uji sekali:
+   ```bash
+   ./scripts/backup.sh
+   ./scripts/monitor.sh
+   ```
+4. Jadwalkan cron:
+   ```cron
+   15 2 * * * cd /root/privis_track_api && ./scripts/backup.sh >> /var/log/privis-backup.log 2>&1
+   */15 * * * * cd /root/privis_track_api && ./scripts/monitor.sh >> /var/log/privis-monitor.log 2>&1
+   ```
 
-MinIO (contoh memakai rclone container, arahkan ke R2/B2):
-
-```bash
-docker run --rm \
-  -e RCLONE_CONFIG=/config/rclone.conf \
-  -v "$PWD/rclone.conf:/config/rclone.conf:ro" \
-  rclone/rclone sync :s3:privis-documents remote:privis-documents
-```
-
-Simpan backup di luar laptop (object storage lain), dan uji restore secara berkala.
+Arsip berisi `database.sql.gz`, mirror bucket MinIO, dan `manifest.txt`.
+Simpan offsite di luar laptop dan **uji restore** secara berkala (prosedur di
+`backup-restore.md`).
 
 ## 8. Troubleshooting
 

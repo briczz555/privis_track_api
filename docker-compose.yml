@@ -185,6 +185,24 @@ services:
       postgres:
         condition: service_healthy
 
+  # Mirror bucket MinIO ke folder lokal saat scripts/backup.sh berjalan.
+  # Dipanggil manual oleh script dengan BACKUP_MIRROR_DIR=<folder tujuan>.
+  backup-mirror:
+    profiles: ["tools"]
+    image: ${MINIO_CLIENT_IMAGE:-cgr.dev/chainguard/minio-client:latest}
+    restart: "no"
+    user: "0:0"
+    environment:
+      MC_CONFIG_DIR: /mc
+    command:
+      - mirror
+      - --overwrite
+      - local/${MINIO_BUCKET:-privis-documents}
+      - /backup
+    volumes:
+      - mc_config:/mc
+      - ${BACKUP_MIRROR_DIR:-./backups/work}:/backup
+
   # Seed data contoh (user, klien, proyek, dokumen, aktivitas).
   #   docker compose --profile tools run --rm seed
   seed:
