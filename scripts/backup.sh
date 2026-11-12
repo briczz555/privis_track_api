@@ -12,6 +12,7 @@
 #   15 2 * * * cd /root/privis_track_api && ./scripts/backup.sh >> /var/log/privis-backup.log 2>&1
 #
 set -Eeuo pipefail
+export PATH="/usr/local/bin:/usr/bin:/bin:${PATH:-}"
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$APP_DIR"
