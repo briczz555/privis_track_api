@@ -74,6 +74,72 @@ rclone config
 # n → name: b2 → storage: b2 → masukkan keyID/appKey
 ```
 
+### 3.2. Google Drive
+
+Google Drive bisa dipakai, tetapi cocok untuk data kecil–menengah. Cek kuota
+akun terlebih dahulu:
+
+```bash
+rclone about gdrive:
+```
+
+Langkah konfigurasi:
+
+```bash
+rclone config
+# n (new remote)
+# name: gdrive
+# Storage: drive
+# client_id: kosongkan (pakai client bawaan rclone)
+# client_secret: kosongkan
+# scope: 1 (drive) — akses penuh ke folder backup
+# root_folder_id: kosongkan
+# service_account_file: kosongkan
+# Edit advanced config: n
+# Use web browser to automatically authenticate: n (VPS headless)
+```
+
+rclone akan menampilkan perintah seperti:
+
+```text
+rclone authorize "drive"
+```
+
+Jalankan perintah itu di komputer/HP yang punya browser, login ke akun Google,
+lalu salin token JSON yang muncul dan tempelkan di prompt VPS.
+
+Buat folder backup dan uji:
+
+```bash
+rclone mkdir gdrive:privis-track-backup
+rclone lsd gdrive:privis-track-backup
+echo tes | rclone rcat gdrive:privis-track-backup/tes.txt
+rclone cat gdrive:privis-track-backup/tes.txt
+rclone delete gdrive:privis-track-backup/tes.txt
+```
+
+Isi `backup.env`:
+
+```env
+BACKUP_REMOTE=gdrive:privis-track-backup
+# Wajib untuk Drive agar retensi benar-benar menghapus, bukan masuk trash:
+RCLONE_DRIVE_USE_TRASH=false
+```
+
+Catatan Google Drive:
+
+- Kuota gratis 15 GB; pastikan `rclone about gdrive:` cukup untuk database +
+  seluruh dokumen. Jika tidak, gunakan Google Workspace/Shared Drive atau R2/B2.
+- `rclone delete` di Drive secara default memindahkan file ke **trash** dan
+  kuota belum berkurang. `RCLONE_DRIVE_USE_TRASH=false` membuat penghapusan
+  permanen. Alternatif: `rclone cleanup gdrive:privis-track-backup`.
+- Google Drive membatasi upload sekitar 750 GB/hari per akun; backup harian
+  normalnya jauh di bawah itu.
+- Untuk Shared Drive (Workspace), isi `team_drive` di advanced config atau
+  gunakan `RCLONE_DRIVE_SHARED_WITH_ME=true` bila folder dibagikan ke akun.
+- Token OAuth disimpan di `rclone.conf`; perlakukan seperti password.
+- Untuk backup PII, gunakan rclone crypt di atas Drive (lihat 3.3).
+
 Lalu isi `BACKUP_REMOTE` dengan `nama-remote:nama-bucket`, misalnya
 `r2:privis-track-backup`.
 
@@ -84,7 +150,7 @@ rclone lsd r2:
 rclone lsd r2:privis-track-backup
 ```
 
-### 3.2. Enkripsi (disarankan)
+### 3.3. Enkripsi (disarankan)
 
 Arsip berisi data proyek dan dokumen (PII). Gunakan rclone crypt di atas remote:
 
