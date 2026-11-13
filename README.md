@@ -2,7 +2,7 @@
 
 Backend Fase 2 untuk aplikasi **PriVis Track** — NestJS 12 + Prisma + PostgreSQL + MinIO (S3-compatible).
 
-**Status:** auth, endpoint baca, upload/download/hapus dokumen, PATCH proyek/tahap, ganti password, hardening, dan manajemen user sudah berjalan. Tinggal operasional (backup/monitoring) dan penyempurnaan UI.
+**Status:** auth, endpoint baca, upload/download/hapus dokumen, PATCH proyek/tahap, ganti password, hardening, manajemen user, serta audit log admin sudah berjalan. Operasional backup/monitoring tersedia lewat skrip.
 
 - Kontrak API (draft): `../privis_track/docs/api-contract.md` dan `../privis_track/docs/openapi.yaml`
   (masih berada di repo aplikasi Flutter untuk review; setelah disetujui dipindahkan ke `docs/` repo ini)
@@ -47,8 +47,9 @@ Backend Fase 2 untuk aplikasi **PriVis Track** — NestJS 12 + Prisma + PostgreS
 | POST | `/v1/users` | admin | tambah user |
 | PATCH | `/v1/users/{id}` | admin | ubah nama/role/divisi/status aktif |
 | POST | `/v1/users/{id}/reset-password` | admin | reset password + cabut semua sesi user |
+| GET | `/v1/audit-logs` | admin | riwayat aksi admin (pagination) |
 
-Belum tersedia: audit log aksi admin.
+Belum tersedia: —.
 
 Dokumentasi interaktif: `http://<host>/docs` (Swagger UI) dan `/docs-json`
 (OpenAPI 3). Nonaktifkan dengan `SWAGGER_ENABLED=false` bila tidak diperlukan.
@@ -207,6 +208,6 @@ Detail konfigurasi rclone, cron, notifikasi, dan prosedur restore:
 
 ## Langkah berikutnya
 
-1. Audit log aksi admin (manajemen user, perubahan proyek) — tabel audit terpisah dari activity proyek.
-2. Opsional: migrasi cache offline ke bulk sync `GET /v1/sync` bila data membesar.
-3. Operasional: uji restore backup secara berkala dan pasang alert Healthchecks/webhook.
+1. Opsional: migrasi cache offline ke bulk sync `GET /v1/sync` bila data membesar.
+2. Operasional: uji restore backup secara berkala dan pasang alert Healthchecks/webhook.
+3. Evaluasi kebutuhan baru di luar cakupan v1.

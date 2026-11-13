@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import type { ActivityType, Prisma, ProjectStatus } from '@prisma/client';
 import type { AuthenticatedUser } from '../common/types/authenticated-user.js';
+import { AuditService } from '../audit/audit.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { CreateProjectDto } from './dto/create-project.dto.js';
 import type { QueryProjectsDto } from './dto/query-projects.dto.js';
@@ -38,7 +39,10 @@ function resolveOrderBy(
 
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   async list(query: QueryProjectsDto) {
     const baseWhere: Prisma.ProjectWhereInput = {};
@@ -192,6 +196,15 @@ export class ProjectsService {
       return created;
     });
 
+    await this.audit.record({
+      actor,
+      action: 'project.created',
+      entity: 'project',
+      entityId: project.id,
+      summary: `membuat proyek ${project.code} · ${project.name}`,
+      metadata: { code: project.code, client_id: project.clientId },
+    });
+
     return mapProjectDetail(project);
   }
 
@@ -268,6 +281,15 @@ export class ProjectsService {
       type: 'project_updated',
       action: 'memperbarui proyek',
       target: updated.name,
+    });
+
+    await this.audit.record({
+      actor,
+      action: 'project.updated',
+      entity: 'project',
+      entityId: project.id,
+      summary: `memperbarui proyek ${updated.code} · ${updated.name}`,
+      metadata: { fields: Object.keys(dto) },
     });
 
     return mapProjectSummary(updated);

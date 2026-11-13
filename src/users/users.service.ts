@@ -7,6 +7,7 @@ import {
 import type { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import type { AuthenticatedUser } from '../common/types/authenticated-user.js';
+import { AuditService } from '../audit/audit.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { CreateUserDto } from './dto/create-user.dto.js';
 import type { UpdateUserDto } from './dto/update-user.dto.js';
@@ -14,7 +15,10 @@ import { toUserResponse, type UserResponse } from './user.mapper.js';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   async list(): Promise<{ data: UserResponse[] }> {
     const users = await this.prisma.user.findMany({
@@ -24,7 +28,10 @@ export class UsersService {
     return { data: users.map(toUserResponse) };
   }
 
-  async create(dto: CreateUserDto): Promise<UserResponse> {
+  async create(
+    dto: CreateUserDto,
+    actor: AuthenticatedUser,
+  ): Promise<UserResponse> {
     const email = dto.email.trim().toLowerCase();
     const existing = await this.prisma.user.findUnique({ where: { email } });
 
@@ -40,6 +47,15 @@ export class UsersService {
         role: dto.role,
         division: dto.division?.trim() || null,
       },
+    });
+
+    await this.audit.record({
+      actor,
+      action: 'user.created',
+      entity: 'user',
+      entityId: user.id,
+      summary: `membuat user ${user.name} (${user.email})`,
+      metadata: { role: user.role, division: user.division },
     });
 
     return toUserResponse(user);
@@ -102,6 +118,27 @@ export class UsersService {
       return result;
     });
 
+    const action =
+      dto.is_active === false
+        ? 'user.deactivated'
+        : dto.is_active === true
+          ? 'user.activated'
+          : 'user.updated';
+
+    await this.audit.record({
+      actor,
+      action,
+      entity: 'user',
+      entityId: updated.id,
+      summary:
+        action === 'user.deactivated'
+          ? `menonaktifkan user ${updated.name}`
+          : action === 'user.activated'
+            ? `mengaktifkan user ${updated.name}`
+            : `memperbarui user ${updated.name}`,
+      metadata: { fields: Object.keys(dto) },
+    });
+
     return toUserResponse(updated);
   }
 
@@ -127,6 +164,14 @@ export class UsersService {
         where: { userId: id, revokedAt: null },
         data: { revokedAt: new Date() },
       });
+    });
+
+    await this.audit.record({
+      actor,
+      action: 'user.password_reset',
+      entity: 'user',
+      entityId: user.id,
+      summary: `mereset password user ${user.name} (${user.email})`,
     });
   }
 }

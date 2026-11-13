@@ -54,8 +54,28 @@ model User {
   refreshTokens RefreshToken[]
   uploadedDocs  Document[]     @relation("UploadedDocuments")
   activities    Activity[]
+  auditLogs     AuditLog[]
 
   @@map("users")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  actorId   String?  @map("actor_id") @db.Uuid
+  actorName String   @map("actor_name")
+  actorRole UserRole @map("actor_role")
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  summary   String
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt(sort: Desc)])
+  @@index([entity, createdAt(sort: Desc)])
+  @@map("audit_logs")
 }
 
 model RefreshToken {
