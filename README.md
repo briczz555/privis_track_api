@@ -48,7 +48,7 @@ Backend Fase 2 untuk aplikasi **PriVis Track** — NestJS 12 + Prisma + PostgreS
 | PATCH | `/v1/users/{id}` | admin | ubah nama/role/divisi/status aktif |
 | POST | `/v1/users/{id}/reset-password` | admin | reset password + cabut semua sesi user |
 
-Belum tersedia: audit log aksi admin dan antivirus scan dokumen.
+Belum tersedia: audit log aksi admin.
 
 Dokumentasi interaktif: `http://<host>/docs` (Swagger UI) dan `/docs-json`
 (OpenAPI 3). Nonaktifkan dengan `SWAGGER_ENABLED=false` bila tidak diperlukan.
@@ -207,7 +207,6 @@ Detail konfigurasi rclone, cron, notifikasi, dan prosedur restore:
 
 ## Langkah berikutnya
 
-1. Backup offsite otomatis + monitoring uptime.
-2. Pagination UI >100 proyek dan deep-link setelah login di Flutter.
-3. Opsional: antivirus scan sebelum dokumen dapat diunduh.
-4. Opsional: audit log aksi admin (manajemen user belum masuk activity proyek).
+1. Audit log aksi admin (manajemen user, perubahan proyek) — tabel audit terpisah dari activity proyek.
+2. Opsional: migrasi cache offline ke bulk sync `GET /v1/sync` bila data membesar.
+3. Operasional: uji restore backup secara berkala dan pasang alert Healthchecks/webhook.
