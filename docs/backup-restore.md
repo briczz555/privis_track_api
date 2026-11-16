@@ -282,7 +282,78 @@ BACKUP_DIR=/tmp/privis-monitor-test ./scripts/monitor.sh
 > Uji restore di lingkungan staging. Jangan menimpa data produksi tanpa backup
 > terbaru dan tanpa persetujuan.
 
-### 7.1. Ekstrak arsip
+### 7.1. Latihan restore tanpa menyentuh produksi
+
+Latihan ini memakai database dan bucket sementara, sehingga data asli tetap aman.
+Gunakan path absolut untuk `RESTORE_DIR` (Docker bind mount).
+
+```bash
+cd ~/privis_track_api
+RESTORE_DIR=/tmp/privis-restore
+mkdir -p "$RESTORE_DIR"
+tar -xzf /var/backups/privis-track/privis-YYYY-MM-DD_HHMMSS.tar.gz \
+  -C "$RESTORE_DIR" --strip-components=1
+```
+
+Bandingkan jumlah data produksi dengan hasil restore:
+
+```bash
+# produksi
+docker compose exec -T postgres psql -U privis -d privis_track -c \
+  "SELECT (SELECT count(*) FROM projects) AS projects,
+          (SELECT count(*) FROM users) AS users,
+          (SELECT count(*) FROM documents WHERE deleted_at IS NULL) AS documents,
+          (SELECT count(*) FROM activities) AS activities,
+          (SELECT count(*) FROM audit_logs) AS audit_logs;"
+
+# restore ke database sementara
+docker compose exec -T postgres psql -U privis -d postgres \
+  -c "DROP DATABASE IF EXISTS privis_track_restore;"
+docker compose exec -T postgres psql -U privis -d postgres \
+  -c "CREATE DATABASE privis_track_restore OWNER privis;"
+gunzip -c "$RESTORE_DIR/database.sql.gz" \
+  | docker compose exec -T postgres psql -U privis -d privis_track_restore
+
+docker compose exec -T postgres psql -U privis -d privis_track_restore -c \
+  "SELECT (SELECT count(*) FROM projects) AS projects,
+          (SELECT count(*) FROM users) AS users,
+          (SELECT count(*) FROM documents WHERE deleted_at IS NULL) AS documents,
+          (SELECT count(*) FROM activities) AS activities,
+          (SELECT count(*) FROM audit_logs) AS audit_logs;"
+```
+
+Restore dokumen ke **bucket sementara** (jangan pakai nama bucket produksi):
+
+```bash
+docker compose --profile tools run --rm backup-mirror \
+  mb local/privis-restore-drill || true
+
+BACKUP_MIRROR_DIR="$RESTORE_DIR/minio" \
+  docker compose --profile tools run --rm backup-mirror \
+  mirror /backup local/privis-restore-drill
+
+# bandingkan jumlah objek
+docker compose --profile tools run --rm backup-mirror \
+  find local/privis-documents --type f | wc -l
+docker compose --profile tools run --rm backup-mirror \
+  find local/privis-restore-drill --type f | wc -l
+```
+
+Bersihkan hasil latihan:
+
+```bash
+docker compose exec -T postgres psql -U privis -d postgres \
+  -c "DROP DATABASE IF EXISTS privis_track_restore;"
+docker compose --profile tools run --rm backup-mirror \
+  rb --force local/privis-restore-drill
+rm -rf "$RESTORE_DIR"
+```
+
+Jika jumlah baris/objek sama (atau sesuai ekspektasi), backup terbukti dapat
+dipulihkan. Baru setelah itu lanjut ke prosedur produksi di bawah bila memang
+diperlukan.
+
+### 7.2. Ekstrak arsip
 
 ```bash
 cd ~/privis_track_api
@@ -293,7 +364,7 @@ mkdir -p "$RESTORE_DIR"
 tar -xzf /var/backups/privis-track/privis-YYYY-MM-DD_HHMMSS.tar.gz -C "$RESTORE_DIR" --strip-components=1
 ```
 
-### 7.2. Restore PostgreSQL
+### 7.3. Restore PostgreSQL
 
 ```bash
 docker compose exec -T postgres psql -U privis -d postgres \
@@ -304,15 +375,15 @@ gunzip -c "$RESTORE_DIR/database.sql.gz" \
   | docker compose exec -T postgres psql -U privis -d privis_track
 ```
 
-### 7.3. Restore MinIO
+### 7.4. Restore MinIO
 
 ```bash
-docker compose run --rm \
-  -v "$RESTORE_DIR/minio:/backup:ro" \
-  backup-mirror mirror /backup local/privis-documents
+BACKUP_MIRROR_DIR="$RESTORE_DIR/minio" \
+  docker compose --profile tools run --rm backup-mirror \
+  mirror /backup local/privis-documents
 ```
 
-### 7.4. Nyalakan dan verifikasi
+### 7.5. Nyalakan dan verifikasi
 
 ```bash
 docker compose start api
