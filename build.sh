@@ -95,7 +95,14 @@ fi
 
 # --- 4. Migration ------------------------------------------------------------
 
-log "[4/6] Jalankan migration database"
+log "[4/6] Build image migration & jalankan migration database"
+# Service `migrate` berada di profile tools. Build eksplisit agar file migration
+# terbaru selalu ikut, tidak memakai image lama.
+if [ "$NO_CACHE" = "1" ]; then
+  docker compose --profile tools build --no-cache migrate
+else
+  docker compose --profile tools build migrate
+fi
 docker compose --profile tools run --rm migrate
 
 if [ "$RUN_SEED" = "1" ]; then
@@ -108,6 +115,8 @@ fi
 
 log "[5/6] Restart container dengan image baru"
 docker compose up -d --remove-orphans
+# Restart eksplisit agar API memuat skema/migration dan environment terbaru.
+docker compose restart api
 docker image prune -f >/dev/null
 
 # --- 6. Health check ---------------------------------------------------------
