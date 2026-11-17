@@ -8,7 +8,7 @@ import { toAuditLogResponse } from './audit.mapper.js';
 export interface AuditEntry {
   actor: AuthenticatedUser;
   action: string;
-  entity: 'user' | 'project';
+  entity: 'user' | 'project' | 'meeting';
   entityId?: string | null;
   summary: string;
   metadata?: Prisma.InputJsonValue;

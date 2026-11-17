@@ -28,6 +28,16 @@ export class UsersService {
     return { data: users.map(toUserResponse) };
   }
 
+  async options() {
+    const users = await this.prisma.user.findMany({
+      where: { isActive: true },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, role: true, division: true },
+    });
+
+    return { data: users };
+  }
+
   async create(
     dto: CreateUserDto,
     actor: AuthenticatedUser,

@@ -13,6 +13,7 @@ import { validateEnv } from './config/env.validation.js';
 import { DashboardModule } from './dashboard/dashboard.module.js';
 import { DocumentsModule } from './documents/documents.module.js';
 import { HealthController } from './health/health.controller.js';
+import { MeetingsModule } from './meetings/meetings.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { ProjectsModule } from './projects/projects.module.js';
 import { StorageModule } from './storage/storage.module.js';
@@ -35,6 +36,7 @@ import { UsersModule } from './users/users.module.js';
     DashboardModule,
     ActivitiesModule,
     DocumentsModule,
+    MeetingsModule,
     UsersModule,
   ],
   controllers: [HealthController],

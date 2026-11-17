@@ -2,7 +2,7 @@
 
 Backend Fase 2 untuk aplikasi **PriVis Track** — NestJS 12 + Prisma + PostgreSQL + MinIO (S3-compatible).
 
-**Status:** auth, endpoint baca, upload/download/hapus dokumen, PATCH proyek/tahap, ganti password, hardening, manajemen user, serta audit log admin sudah berjalan. Operasional backup/monitoring tersedia lewat skrip.
+**Status:** auth, endpoint baca, upload/download/hapus dokumen, PATCH proyek/tahap, ganti password, hardening, manajemen user, audit log admin, serta kalender meeting sudah berjalan. Operasional backup/monitoring tersedia lewat skrip.
 
 - Kontrak API (draft): `../privis_track/docs/api-contract.md` dan `../privis_track/docs/openapi.yaml`
   (masih berada di repo aplikasi Flutter untuk review; setelah disetujui dipindahkan ke `docs/` repo ini)
@@ -48,6 +48,12 @@ Backend Fase 2 untuk aplikasi **PriVis Track** — NestJS 12 + Prisma + PostgreS
 | PATCH | `/v1/users/{id}` | admin | ubah nama/role/divisi/status aktif |
 | POST | `/v1/users/{id}/reset-password` | admin | reset password + cabut semua sesi user |
 | GET | `/v1/audit-logs` | admin | riwayat aksi admin (pagination) |
+| GET | `/v1/users/options` | bearer | user aktif untuk participant picker |
+| GET | `/v1/meetings` | bearer | meeting pada rentang tanggal + filter |
+| GET | `/v1/meetings/{id}` | bearer | detail meeting |
+| POST | `/v1/meetings` | bearer | buat meeting (organizer = user) |
+| PATCH | `/v1/meetings/{id}` | organizer/admin/pm | ubah meeting |
+| POST | `/v1/meetings/{id}/cancel` | organizer/admin/pm | batalkan meeting |
 
 Belum tersedia: —.
 
