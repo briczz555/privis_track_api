@@ -4,6 +4,8 @@
   "sourceRoot": "src",
   "compilerOptions": {
     "deleteOutDir": true,
+    "assets": ["meetings/mom/templates/*.docx"],
+    "watchAssets": true,
     "plugins": ["@nestjs/swagger"]
   }
 }

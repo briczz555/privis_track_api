@@ -67,6 +67,7 @@ model User {
   auditLogs         AuditLog[]
   organizedMeetings Meeting[]            @relation("MeetingOrganizer")
   meetingInvites    MeetingParticipant[]
+  generatedMoms     MeetingMom[]
 
   @@map("users")
 }
@@ -218,6 +219,7 @@ model Meeting {
   project      Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
   organizer    User                 @relation("MeetingOrganizer", fields: [organizerId], references: [id], onDelete: Restrict)
   participants MeetingParticipant[]
+  mom          MeetingMom?
 
   @@index([startAt])
   @@index([projectId, startAt])
@@ -235,4 +237,22 @@ model MeetingParticipant {
   @@id([meetingId, userId])
   @@index([userId])
   @@map("meeting_participants")
+}
+
+/// Hasil generate Minutes of Meeting dari template resmi. Satu meeting
+/// menyimpan satu MoM aktif; generate ulang mengganti file lama.
+model MeetingMom {
+  id            String   @id @default(uuid()) @db.Uuid
+  meetingId     String   @unique @map("meeting_id") @db.Uuid
+  fileName      String   @map("file_name")
+  storageKey    String   @map("storage_key")
+  sizeBytes     Int      @map("size_bytes")
+  generatedById String   @map("generated_by_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  meeting     Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  generatedBy User    @relation(fields: [generatedById], references: [id], onDelete: Restrict)
+
+  @@map("meeting_moms")
 }

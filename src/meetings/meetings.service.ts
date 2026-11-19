@@ -6,13 +6,21 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
 import { AuditService } from '../audit/audit.service.js';
 import type { AuthenticatedUser } from '../common/types/authenticated-user.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { S3Service } from '../storage/s3.service.js';
 import type { CreateMeetingDto } from './dto/create-meeting.dto.js';
 import type { QueryMeetingsDto } from './dto/query-meetings.dto.js';
 import type { UpdateMeetingDto } from './dto/update-meeting.dto.js';
 import { meetingInclude, toMeetingResponse } from './meeting.mapper.js';
+import { fillMomDocument, loadMomTemplate } from './mom/mom-document.js';
+import {
+  buildMomFields,
+  buildMomFileName,
+  DOCX_MIME_TYPE,
+} from './mom/mom-fields.js';
 
 const MAX_RANGE_MS = 92 * 24 * 60 * 60 * 1000;
 const MAX_DURATION_MS = 24 * 60 * 60 * 1000;
@@ -29,6 +37,7 @@ export class MeetingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly s3: S3Service,
   ) {}
 
   async list(query: QueryMeetingsDto, user: AuthenticatedUser) {
@@ -232,6 +241,87 @@ export class MeetingsService {
     return toMeetingResponse(updated);
   }
 
+  /**
+   * Membuat atau membuat ulang MoM. Hanya Bagian 1 template yang terisi
+   * otomatis; sisanya diisi manual setelah dokumen diunduh.
+   */
+  async generateMom(id: string, actor: AuthenticatedUser) {
+    const meeting = await this.findMeeting(id);
+    assertCanManageMom(actor, meeting.organizerId);
+
+    if (meeting.status === 'cancelled') {
+      throw new BadRequestException(
+        'Meeting yang dibatalkan tidak dapat dibuatkan MoM.',
+      );
+    }
+
+    const document = fillMomDocument(
+      await loadMomTemplate(),
+      buildMomFields(meeting),
+    );
+    const fileName = buildMomFileName(meeting);
+    const storageKey = `meetings/${meeting.id}/mom/${randomUUID()}-${fileName}`;
+
+    const previous = await this.prisma.meetingMom.findUnique({
+      where: { meetingId: id },
+      select: { storageKey: true },
+    });
+
+    await this.s3.upload({
+      key: storageKey,
+      body: document,
+      contentType: DOCX_MIME_TYPE,
+    });
+
+    await this.prisma.meetingMom.upsert({
+      where: { meetingId: id },
+      create: {
+        meetingId: id,
+        fileName,
+        storageKey,
+        sizeBytes: document.length,
+        generatedById: actor.id,
+      },
+      update: {
+        fileName,
+        storageKey,
+        sizeBytes: document.length,
+        generatedById: actor.id,
+      },
+    });
+
+    if (previous && previous.storageKey !== storageKey) {
+      try {
+        await this.s3.remove(previous.storageKey);
+      } catch {
+        // Metadata tetap diperbarui walau objek lama gagal dihapus.
+      }
+    }
+
+    await this.audit.record({
+      actor,
+      action: previous ? 'meeting.mom_regenerated' : 'meeting.mom_generated',
+      entity: 'meeting',
+      entityId: meeting.id,
+      summary: `${previous ? 'membuat ulang' : 'membuat'} MoM meeting "${meeting.title}"`,
+      metadata: { file_name: fileName, size_bytes: document.length },
+    });
+
+    return toMeetingResponse(await this.findMeeting(id));
+  }
+
+  async downloadMom(id: string) {
+    const mom = await this.prisma.meetingMom.findUnique({
+      where: { meetingId: id },
+    });
+
+    if (!mom) {
+      throw new NotFoundException('MoM belum dibuat untuk meeting ini.');
+    }
+
+    return { mom, object: await this.s3.download(mom.storageKey) };
+  }
+
   private async findMeeting(id: string) {
     const meeting = await this.prisma.meeting.findUnique({
       where: { id },
@@ -328,6 +418,21 @@ function assertCanManage(actor: AuthenticatedUser, organizerId: string): void {
   ) {
     throw new ForbiddenException(
       'Hanya organizer, admin, atau PM yang dapat mengubah meeting ini.',
+    );
+  }
+}
+
+function assertCanManageMom(
+  actor: AuthenticatedUser,
+  organizerId: string,
+): void {
+  if (
+    actor.role !== 'admin' &&
+    actor.role !== 'pm' &&
+    actor.id !== organizerId
+  ) {
+    throw new ForbiddenException(
+      'Hanya organizer, admin, atau PM yang dapat membuat MoM meeting ini.',
     );
   }
 }

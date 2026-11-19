@@ -18,11 +18,26 @@ export const meetingInclude = Prisma.validator<Prisma.MeetingInclude>()({
     },
     orderBy: { createdAt: 'asc' },
   },
+  mom: {
+    include: { generatedBy: { select: { id: true, name: true } } },
+  },
 });
 
 export type MeetingRow = Prisma.MeetingGetPayload<{
   include: typeof meetingInclude;
 }>;
+
+export function toMomResponse(mom: MeetingRow['mom']) {
+  if (!mom) return null;
+
+  return {
+    file_name: mom.fileName,
+    size_bytes: mom.sizeBytes,
+    // `updated_at` menjadi waktu generate terakhir saat MoM dibuat ulang.
+    generated_at: mom.updatedAt.toISOString(),
+    generated_by: { id: mom.generatedBy.id, name: mom.generatedBy.name },
+  };
+}
 
 export function toMeetingResponse(row: MeetingRow) {
   return {
@@ -58,6 +73,7 @@ export function toMeetingResponse(row: MeetingRow) {
       division: participant.user.division,
     })),
     notes: row.notes,
+    mom: toMomResponse(row.mom),
     created_at: row.createdAt.toISOString(),
     updated_at: row.updatedAt.toISOString(),
   };
