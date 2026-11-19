@@ -22,7 +22,8 @@ export function buildMomFields(meeting: MeetingRow): MomFields {
     date: formatWibDate(meeting.startAt),
     timeRange: `${formatWibTime(meeting.startAt)}${TIME_RANGE_SEPARATOR}${formatWibTime(meeting.endAt)} WIB`,
     place: describePlace(meeting),
-    chair: meeting.organizer.name,
+    // Pimpinan rapat diambil dari PIC klien, bukan organizer internal.
+    chair: meeting.project?.client.contactName ?? EMPTY,
   };
 }
 

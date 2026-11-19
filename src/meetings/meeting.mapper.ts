@@ -6,7 +6,9 @@ export const meetingInclude = Prisma.validator<Prisma.MeetingInclude>()({
       id: true,
       code: true,
       name: true,
-      client: { select: { id: true, name: true, address: true } },
+      client: {
+        select: { id: true, name: true, address: true, contactName: true },
+      },
     },
   },
   organizer: {

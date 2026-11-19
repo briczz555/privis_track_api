@@ -29,7 +29,9 @@ const projectSelect = {
   id: true,
   code: true,
   name: true,
-  client: { select: { id: true, name: true, address: true } },
+  client: {
+    select: { id: true, name: true, address: true, contactName: true },
+  },
 } satisfies Prisma.ProjectSelect;
 
 @Injectable()

@@ -20,7 +20,12 @@ function meeting(overrides: Record<string, unknown> = {}) {
       id: 'project-1',
       code: 'PRJ-001',
       name: 'Aplikasi PriVis Track',
-      client: { id: 'client-1', name: 'PT Briczz Digital', address: null },
+      client: {
+        id: 'client-1',
+        name: 'PT Briczz Digital',
+        address: null,
+        contactName: 'Budi Santoso',
+      },
     },
     organizer: {
       id: 'user-1',
@@ -57,7 +62,7 @@ describe('buildMomFields', () => {
       date: '20/11/2026',
       timeRange: '09.00 – 10.30 WIB',
       place: 'Online - https://meet.google.com/abc-defg-hij',
-      chair: 'Rina Kusuma',
+      chair: 'Budi Santoso',
     });
   });
 
@@ -81,6 +86,7 @@ describe('buildMomFields', () => {
     expect(fields.projectName).toBe('-');
     expect(fields.clientName).toBe('-');
     expect(fields.place).toBe('-');
+    expect(fields.chair).toBe('-');
   });
 });
 
