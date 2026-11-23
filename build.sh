@@ -19,6 +19,14 @@ set -euo pipefail
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$APP_DIR"
 
+# Bash membuka file script sekali saja. Saat step 1 menjalankan
+# `git reset --hard`, file di disk diganti tetapi proses yang sedang berjalan
+# tetap membaca versi lama (pernah membuat migration terbaru tidak ikut jalan).
+# Karena itu hash script dibandingkan setelah update kode dan script dijalankan
+# ulang sekali bila isinya berubah.
+SCRIPT_PATH="$APP_DIR/$(basename "${BASH_SOURCE[0]}")"
+SCRIPT_SHA_BEFORE="$(sha256sum "$SCRIPT_PATH" 2>/dev/null | cut -d' ' -f1)"
+
 BRANCH="${1:-main}"
 NO_CACHE="${NO_CACHE:-0}"
 RUN_SEED="${SEED:-0}"
@@ -78,6 +86,12 @@ git fetch origin "$BRANCH"
 git checkout "$BRANCH"
 git reset --hard "origin/$BRANCH"
 echo "Commit: $(git rev-parse --short HEAD) - $(git log -1 --pretty=%s)"
+
+if [ "$(sha256sum "$SCRIPT_PATH" 2>/dev/null | cut -d' ' -f1)" != "$SCRIPT_SHA_BEFORE" ] \
+  && [ "${PRIVIS_BUILD_REEXEC:-0}" != "1" ]; then
+  log "build.sh berubah pada commit ini — menjalankan ulang versi terbaru"
+  PRIVIS_BUILD_REEXEC=1 exec bash "$SCRIPT_PATH" "$@"
+fi
 
 # --- 2. Validasi compose -----------------------------------------------------
 
